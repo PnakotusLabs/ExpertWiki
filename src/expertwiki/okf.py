@@ -66,9 +66,53 @@ def parse_frontmatter(text: str, path: Path) -> tuple[dict[str, Any], str]:
     return metadata, body
 
 
+def render_frontmatter(metadata: dict[str, Any], body: str) -> str:
+    lines = ["---"]
+    for key, value in metadata.items():
+        lines.extend(_render_field(key, value))
+    lines.append("---")
+    lines.append("")
+    lines.append(body.strip())
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _render_field(key: str, value: Any) -> list[str]:
+    if isinstance(value, list):
+        if not value:
+            return [f"{key}: []"]
+        rendered = [f"{key}:"]
+        rendered.extend(f"  - {_render_scalar(item)}" for item in value)
+        return rendered
+    return [f"{key}: {_render_scalar(value)}"]
+
+
+def _render_scalar(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    text = str(value)
+    if not text:
+        return ""
+    if any(char in text for char in [":", "#", "[", "]", "{", "}", "\n"]) or text != text.strip():
+        return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return text
+
+
 def _parse_simple_yaml(lines: list[str], path: Path) -> dict[str, Any]:
     metadata: dict[str, Any] = {}
+    current_key: str | None = None
     for line_number, raw_line in enumerate(lines, start=2):
+        if raw_line.startswith("  - ") and current_key:
+            current_value = metadata.setdefault(current_key, [])
+            if not isinstance(current_value, list):
+                raise ValueError(
+                    f"Frontmatter field is not a list in {path}:{line_number}"
+                )
+            current_value.append(_parse_scalar(raw_line[4:].strip()))
+            continue
+
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
@@ -78,21 +122,47 @@ def _parse_simple_yaml(lines: list[str], path: Path) -> dict[str, Any]:
         key = key.strip()
         if not key:
             raise ValueError(f"Empty frontmatter key in {path}:{line_number}")
+        current_key = key
         metadata[key] = _parse_scalar(raw_value.strip())
     return metadata
 
 
 def _parse_scalar(value: str) -> Any:
     if value == "":
+        return []
+    if value in {"null", "Null", "NULL", "~"}:
         return None
-    if value in {"true", "false"}:
-        return value == "true"
+    if value in {"true", "True", "TRUE"}:
+        return True
+    if value in {"false", "False", "FALSE"}:
+        return False
     if value.startswith("[") and value.endswith("]"):
         inner = value[1:-1].strip()
         if not inner:
             return []
-        return [_strip_quotes(item.strip()) for item in inner.split(",")]
+        return [_parse_scalar(item.strip()) for item in _split_inline_list(inner)]
     return _strip_quotes(value)
+
+
+def _split_inline_list(value: str) -> list[str]:
+    parts: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    for char in value:
+        if char in {"'", '"'}:
+            if quote is None:
+                quote = char
+            elif quote == char:
+                quote = None
+            current.append(char)
+            continue
+        if char == "," and quote is None:
+            parts.append("".join(current).strip())
+            current = []
+            continue
+        current.append(char)
+    parts.append("".join(current).strip())
+    return parts
 
 
 def _strip_quotes(value: str) -> str:

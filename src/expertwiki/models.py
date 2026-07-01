@@ -30,7 +30,7 @@ class Claim:
     confidence: str
     sources: list[dict[str, Any]]
     reviewers: list[dict[str, Any]]
-    last_verified_at: str
+    last_verified_at: str | None
 
     def to_dict(self, source_records: dict[str, Source] | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -69,10 +69,13 @@ class Claim:
         source_paths = _required_metadata_list(metadata, "sources")
         reviewers = [
             _parse_reviewer(str(reviewer))
-            for reviewer in _required_metadata_list(metadata, "reviewers")
+            for reviewer in _metadata_list(metadata, "reviewers")
         ]
-        if not reviewers:
+        if status in {"reviewed", "verified"} and not reviewers:
             raise ValueError("Claim must include at least one reviewer")
+        last_verified_at = _optional_metadata_str(metadata, "verified_at")
+        if status == "verified" and not last_verified_at:
+            raise ValueError("Verified claim must include verified_at")
 
         return cls(
             id=concept.id.removeprefix("claims/"),
@@ -90,7 +93,7 @@ class Claim:
                 for source_path in source_paths
             ],
             reviewers=reviewers,
-            last_verified_at=_required_metadata_str(metadata, "verified_at"),
+            last_verified_at=last_verified_at,
         )
 
 
@@ -132,6 +135,15 @@ def _required_metadata_list(raw: dict[str, Any], key: str) -> list[Any]:
     value = raw.get(key)
     if not isinstance(value, list):
         raise ValueError(f"Missing required frontmatter list field: {key}")
+    return value
+
+
+def _metadata_list(raw: dict[str, Any], key: str) -> list[Any]:
+    value = raw.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"Frontmatter field must be a list: {key}")
     return value
 
 

@@ -2,8 +2,8 @@
 
 ## Decision
 
-Build a local-first authoring workflow plus an access-controlled verified
-knowledge API for agent developers.
+Build a local-first authoring CLI and local wiki runtime for creating,
+validating, querying, auditing, and packaging ExpertWiki OKF bundles.
 
 ## Target Users
 
@@ -22,17 +22,18 @@ AI agent engineering knowledge:
 
 ## Product Promise
 
-Agents can ask ExpertWiki for knowledge that is:
+Local users and their agents can create and query ExpertWiki knowledge that is:
 
 - sourced to primary or high-credibility references,
 - reviewed by an identifiable human or organization,
 - represented as small claims rather than opaque generated prose,
 - marked with confidence, freshness, and disputed/stale status,
-- available over HTTP and MCP-compatible tool contracts.
+- available through local CLI first, with local HTTP/MCP adapters later.
 
 Contributors can compile private knowledge locally and publish selected bundles
 with explicit access modes. Paid or private knowledge is queried remotely by
-default instead of being downloaded wholesale.
+default instead of being downloaded wholesale, but that enforcement belongs to a
+registry service outside this authoring repo.
 
 ## MVP Features
 
@@ -47,6 +48,18 @@ default instead of being downloaded wholesale.
    `remote_only`, and `enterprise_private`.
 8. Reserve `install` for open bundles and use `subscribe` plus remote query for
    paid or private bundles.
+9. Provide a deterministic local `expertwiki lint` command for OKF conformance,
+   source references, indexes, links, and access policy checks.
+10. Keep marketplace backend, paid/private enforcement, reward settlement, and
+    anti-abuse outside this repository.
+11. Provide local `init`, `index`, `query`, and `package --dry-run` commands
+    before adding remote registry client commands.
+12. Provide local `ingest`, `compile`, and `audit` commands that preserve raw
+    sources, generate draft claims for human review, and write audit reports
+    without automated fact invention.
+13. Provide `verify`, `list`, `show`, and `mark` commands so a single user can
+    inspect drafts, promote reviewed claims, and maintain stale/disputed/rejected
+    lifecycle states locally.
 
 ## Non-goals
 
@@ -56,6 +69,7 @@ default instead of being downloaded wholesale.
 - Enterprise SSO and permission matrix.
 - Vector search before keyword search and claim quality are validated.
 - Downloading paid or private bundles to consumers by default.
+- Marketplace backend or paid/private enforcement inside this open-source repo.
 - Cash rewards before nomination, usage accounting, abuse controls, and
   licensing rules are understood.
 
@@ -67,3 +81,5 @@ default instead of being downloaded wholesale.
 - At least 5 stale or disputed cases handled without silent fallback.
 - At least one open bundle flow and one remote-only bundle flow are specified
   and tested at the contract level.
+- A new user can initialize, lint, query, and package a local bundle without
+  needing a hosted service.

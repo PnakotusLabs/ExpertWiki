@@ -5,19 +5,28 @@
 ExpertWiki is a local-first authoring system and access-controlled knowledge
 exchange marketplace for LLM Wikis.
 
-Users should be able to fork the project, use Codex or another agent to turn
-their own sources and experience into a private wiki, use it locally, and then
-explicitly publish selected knowledge products to an organization or public
-registry. Open bundles may be downloadable. Paid, private, or enterprise bundles
-should be consumed through permissioned remote queries by default. When other
-users or agents reuse that knowledge, the contributor can receive nomination,
-reputation, credits, or future rewards.
+This open-source repository is the local authoring CLI and local wiki runtime.
+It should be safe for users to fork, inspect, modify, and run offline. Users
+should be able to use Codex or another agent to turn their own sources and
+experience into a private wiki, use it locally, and then explicitly package
+selected knowledge products for an organization or public registry.
+
+Open bundles may be downloadable. Paid, private, or enterprise bundles should be
+consumed through permissioned remote queries by default. When other users or
+agents reuse that knowledge, the contributor can receive nomination, reputation,
+credits, or future rewards through a registry layer outside this local authoring
+repo.
 
 ## North Star
 
 Make useful human knowledge portable for authors, verifiable for reviewers,
 controlled for marketplaces, reusable by agents, and rewardable without locking
 it into one model vendor, database, protocol, or UI.
+
+For this repository specifically, the north star is narrower:
+
+> Be the transparent, local-first authoring tool that creates, validates,
+> queries, audits, and packages ExpertWiki knowledge bundles.
 
 ## Lineage
 
@@ -35,6 +44,10 @@ ExpertWiki should combine three layers:
    a verified knowledge exchange layer where local bundles can be reviewed,
    packaged into licensed knowledge products, queried under access control,
    nominated, and rewarded.
+
+This repository implements the local bundle authoring layer. Marketplace,
+registry, payment, anti-abuse, and reward systems are separate layers that may
+consume packages produced by this repository.
 
 ## User Promise
 
@@ -85,6 +98,18 @@ Improve
 
 ## Development Principles
 
+### Open-source repo boundary
+
+This repository should contain only functionality that can be fully open,
+inspectable, forkable, and runnable by end users. Its job is local authoring,
+local validation, local querying, local auditing, packaging, and client-side
+registry integration.
+
+This repository should not contain the marketplace backend, paid/private remote
+query implementation, reward settlement logic, anti-abuse scoring, private
+registry internals, or hidden permission enforcement. Those belong in a registry
+or marketplace service outside the local authoring CLI.
+
 ### Local-first
 
 The user's local wiki is the primary working environment. No knowledge should be
@@ -96,6 +121,10 @@ Local-first applies to authors. It does not mean every marketplace consumer gets
 a full copy of paid or private knowledge. Open knowledge can be installed as a
 complete bundle. Paid, gated, or enterprise knowledge should default to remote
 query access, controlled excerpts, and license-bound responses.
+
+The open-source CLI may call remote registry APIs as a client, but it should not
+pretend to enforce marketplace protections locally. Local code is visible and
+modifiable by users, so paid/private enforcement must live server-side.
 
 ### OKF-first
 
@@ -184,6 +213,8 @@ ExpertWiki should not become:
 - a hosted-only SaaS knowledge base,
 - a single-agent plugin,
 - a social posting platform,
+- a marketplace backend inside the public authoring repo,
+- a client-side DRM system for paid knowledge,
 - a web scraper that republishes copyrighted content,
 - a database-first schema with markdown export as an afterthought.
 
@@ -191,10 +222,14 @@ ExpertWiki should become:
 
 - a local CLI and agent workflow for compiling personal/team LLM Wikis,
 - an OKF-compatible bundle format with verification metadata,
-- a registry for publishing bundles and installing open bundles,
-- controlled remote query access for paid and private bundles,
+- package and publish-preflight tooling for registry submission,
+- a client for installing open bundles and querying licensed remote bundles,
 - a protocol layer for agents to query verified knowledge,
 - a contribution system for nomination, reputation, and future rewards.
+
+The contribution, nomination, reputation, and reward systems may be supported by
+client commands here, but their authoritative state and enforcement belong to a
+registry service.
 
 ## Suggested Roadmap
 
@@ -203,14 +238,37 @@ ExpertWiki should become:
 - `expertwiki init`
 - `expertwiki ingest`
 - `expertwiki compile`
+- `expertwiki verify`
+- `expertwiki list`
+- `expertwiki show`
+- `expertwiki mark`
 - `expertwiki query`
 - `expertwiki lint`
 - `expertwiki audit`
 - OKF bundle output
 
+Phase 1 is complete only when a single user can run the full local knowledge
+lifecycle without a hosted service:
+
+1. initialize a wiki,
+2. ingest local notes, files, or URL records as sources,
+3. generate draft claims from sources,
+4. list and inspect pending drafts,
+5. verify claims with reviewer identity, review method, confidence, and
+   verification date,
+6. query verified knowledge,
+7. mark claims as stale, disputed, rejected, or draft again,
+8. audit the bundle,
+9. run privacy, license, access-policy, and source-reference preflight checks,
+10. export or package the bundle locally.
+
 ### Phase 2: Organization Registry
 
+- registry client commands in this repo
 - `expertwiki publish --visibility org`
+- `expertwiki publish --dry-run`
+- `expertwiki package`
+- privacy and license preflight checks
 - organization review workflow
 - open bundle install
 - gated and remote-only subscription
@@ -254,6 +312,10 @@ Default CLI meanings:
   without downloading the full bundle.
 - `expertwiki publish` must run privacy, license, and access-mode checks before
   upload.
+
+`subscribe`, `query --remote`, `publish`, nomination, and reward-related commands
+are clients of a registry service. They must not rely on local-only enforcement
+for paid or private knowledge.
 
 ## Default Design Decision
 

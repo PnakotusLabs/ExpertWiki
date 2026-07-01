@@ -10,9 +10,13 @@ raw sources
   -> expert review
   -> OKF bundle
   -> access policy
-  -> local API, remote API, and MCP tools
+  -> local CLI, local API, and MCP adapters
   -> agent clients
 ```
+
+Remote marketplace APIs are external registry services. This open-source repo
+may provide clients and publish-preflight tooling, but it must not implement the
+authoritative marketplace backend or paid/private enforcement.
 
 ## Objects
 
@@ -101,7 +105,7 @@ Returns one claim with sources, review status, and provenance.
 For remote-only or enterprise-private bundles, this endpoint must enforce access
 policy and may return a redacted claim view.
 
-### Future Remote Marketplace API
+### External Registry API Client
 
 ```text
 GET /marketplace/search?q=<query>
@@ -110,6 +114,9 @@ POST /marketplace/bundles/<owner>/<name>/subscribe
 POST /marketplace/bundles/<owner>/<name>/query
 POST /marketplace/claims/<id>/nominate
 ```
+
+These endpoints are shown as a future registry contract, not as server
+responsibilities for this repository.
 
 ### Future MCP Tools
 
@@ -122,6 +129,8 @@ expertwiki.marketplace_search
 expertwiki.remote_query
 expertwiki.nominate_claim
 ```
+
+Marketplace-related tools should be client adapters to a registry service.
 
 ## Design Rules
 
