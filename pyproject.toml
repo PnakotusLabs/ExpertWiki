@@ -1,0 +1,9 @@
+[project]
+name = "expertwiki"
+version = "0.1.0"
+description = "Human-verified knowledge API for agents"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
