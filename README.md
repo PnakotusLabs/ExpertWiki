@@ -23,7 +23,7 @@ https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 ## Bundle Layout
 
 ```text
-my-wiki/
+expertwiki/
   AGENTS.md
   index.md
   log.md
@@ -56,16 +56,22 @@ python3 -m pip install -e .
 If your shell cannot find the installed `expertwiki` script, run the same
 commands as `python3 -m expertwiki.cli ...`.
 
-Create a wiki:
+Create a wiki in `./expertwiki/`:
+
+```bash
+expertwiki init --title "Engineering Notes"
+expertwiki ingest expertwiki ./notes.md --publisher "Me" --slug notes
+expertwiki page create expertwiki wiki/topics/notes.md \
+  --title "Notes" \
+  --source notes
+expertwiki lint expertwiki
+expertwiki query expertwiki "notes"
+```
+
+Pass an explicit directory to create a bundle somewhere else:
 
 ```bash
 expertwiki init my-wiki --title "Engineering Notes"
-expertwiki ingest my-wiki ./notes.md --publisher "Me" --slug notes
-expertwiki page create my-wiki wiki/topics/notes.md \
-  --title "Notes" \
-  --source notes
-expertwiki lint my-wiki
-expertwiki query my-wiki "notes"
 ```
 
 Run from source without installing:
@@ -92,7 +98,7 @@ curl "http://127.0.0.1:8765/pages/topics/llm-wiki"
 ## CLI
 
 ```bash
-expertwiki init <wiki> --title "<title>"
+expertwiki init [wiki] --title "<title>"
 expertwiki ingest <wiki> <file-or-url> --publisher "<publisher>" --slug <slug>
 expertwiki page create <wiki> wiki/topics/<page>.md --title "<title>" --source <source-ref>
 expertwiki list <wiki> pages

@@ -18,7 +18,7 @@ reads and writes local LLM Wiki bundles.
 | `list` | no | Find pages, sources, or audits. |
 | `show` | no | Inspect one page, source, or audit. |
 | `query` | appends `log.md` | Search local wiki pages. |
-| `init` | yes | Create a wiki in a new or empty directory. |
+| `init` | yes | Create a wiki in a new or empty directory. Defaults to `./expertwiki/`. |
 | `ingest` | yes | Add source material under `raw/sources/`. |
 | `page create` | yes | Create a Markdown page under `wiki/`. |
 | `index` | yes | Rebuild derived `index.md` files. |

@@ -13,6 +13,29 @@ viewer, reviewable in Git, and maintainable by coding agents.
 Be the transparent local tool that creates, maintains, validates, searches, and
 packages LLM Wiki bundles.
 
+## Strategic Memory
+
+PKM and capture tools are upstream systems. They help users save notes, links,
+snippets, highlights, files, and daily thoughts with low friction.
+
+ExpertWiki should not compete primarily as another note-taking or bookmark
+manager. Its durable value is the downstream compiler layer: turning raw,
+captured material into a trusted, source-preserving, reviewable, interlinked
+Markdown wiki.
+
+The product strategy is:
+
+```text
+PKM / capture tools
+  -> raw sources
+  -> ExpertWiki synthesis, links, provenance, lint, and audit
+  -> durable wiki bundle
+```
+
+This distinction matters: PKM answers "how do I save and retrieve my material?"
+ExpertWiki answers "how do these materials become a maintainable knowledge
+system?"
+
 ## Lineage
 
 ExpertWiki follows the LLM Wiki idea:

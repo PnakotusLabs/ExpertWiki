@@ -28,6 +28,10 @@ class AuthoringTest(unittest.TestCase):
             self.assertIn("AGENTS.md", result.created_files)
             self.assertTrue((root / "raw" / "sources" / "index.md").exists())
             self.assertTrue((root / "wiki" / "topics" / "index.md").exists())
+            agents_text = (root / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertIn("Recommended Agent Loop", agents_text)
+            self.assertIn("Page Type Guide", agents_text)
+            self.assertIn("wiki/synthesis/", agents_text)
             self.assertTrue(lint_result.ok)
             self.assertIn("init | Initialized LLM Wiki", (root / "log.md").read_text())
 

@@ -12,9 +12,9 @@ User intent:
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli init my-wiki --title "Engineering Notes"
-PYTHONPATH=src python3 -m expertwiki.cli status my-wiki --json
-PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
+PYTHONPATH=src python3 -m expertwiki.cli init --title "Engineering Notes"
+PYTHONPATH=src python3 -m expertwiki.cli status expertwiki --json
+PYTHONPATH=src python3 -m expertwiki.cli lint expertwiki
 ```
 
 Expected behavior:
@@ -31,8 +31,8 @@ User intent:
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli ingest my-wiki docs/oauth.md --publisher "local notes" --slug oauth
-PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
+PYTHONPATH=src python3 -m expertwiki.cli ingest expertwiki docs/oauth.md --publisher "local notes" --slug oauth
+PYTHONPATH=src python3 -m expertwiki.cli lint expertwiki
 ```
 
 Expected behavior:
@@ -49,9 +49,9 @@ User intent:
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli page create my-wiki wiki/topics/oauth.md --title "OAuth" --source oauth
-PYTHONPATH=src python3 -m expertwiki.cli show my-wiki wiki/topics/oauth.md
-PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
+PYTHONPATH=src python3 -m expertwiki.cli page create expertwiki wiki/topics/oauth.md --title "OAuth" --source oauth
+PYTHONPATH=src python3 -m expertwiki.cli show expertwiki wiki/topics/oauth.md
+PYTHONPATH=src python3 -m expertwiki.cli lint expertwiki
 ```
 
 Expected behavior:
@@ -69,7 +69,7 @@ User intent:
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli query my-wiki "OAuth notes" --json
+PYTHONPATH=src python3 -m expertwiki.cli query expertwiki "OAuth notes" --json
 ```
 
 Expected behavior:

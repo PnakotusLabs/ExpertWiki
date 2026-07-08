@@ -24,7 +24,12 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_parser = subparsers.add_parser("init", help="Create a local LLM Wiki")
-    init_parser.add_argument("bundle_dir")
+    init_parser.add_argument(
+        "bundle_dir",
+        nargs="?",
+        default="expertwiki",
+        help="Bundle directory to create. Defaults to ./expertwiki",
+    )
     init_parser.add_argument("--title")
     init_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
