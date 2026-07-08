@@ -15,26 +15,19 @@ class BundleLintTest(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.counts()["critical"], 0)
 
-    def test_missing_claim_source_is_critical(self) -> None:
+    def test_missing_page_source_is_critical(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _write_minimal_bundle(root)
-            (root / "claims" / "broken.md").write_text(
+            _write_minimal_wiki(root)
+            (root / "wiki" / "topics" / "broken.md").write_text(
                 """---
-type: Verified Claim
-title: Broken Claim
-description: Broken source reference.
-tags: [broken]
-status: verified
-confidence: high
-reviewers: [reviewer:source_audit]
-verified_at: 2026-07-01
-sources: [/sources/missing.md]
+type: wiki_page
+title: Broken Page
+sources: [/raw/sources/missing.md]
+updated_at: 2026-07-04
 ---
 
-# Claim
-
-This claim points at a missing source.
+# Broken Page
 """,
                 encoding="utf-8",
             )
@@ -42,75 +35,55 @@ This claim points at a missing source.
             result = lint_bundle(root)
 
         self.assertFalse(result.ok)
-        self.assertTrue(
-            any("missing source" in issue.message for issue in result.issues)
-        )
+        self.assertTrue(any("missing source" in issue.message for issue in result.issues))
 
-    def test_remote_only_bundle_cannot_allow_full_download(self) -> None:
+    def test_broken_markdown_link_is_warning(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
-            _write_minimal_bundle(root)
-            (root / "access.md").write_text(
+            _write_minimal_wiki(root)
+            (root / "wiki" / "topics" / "page.md").write_text(
                 """---
-type: Access Policy
-title: Remote Policy
-description: Invalid remote-only policy.
-mode: remote_only
-download: allowed
-query: remote
+type: wiki_page
+title: Page
+sources: []
+updated_at: 2026-07-04
 ---
 
-# Access Policy
+# Page
 
-Invalid.
+[Missing](missing.md)
 """,
                 encoding="utf-8",
             )
 
             result = lint_bundle(root)
 
-        self.assertFalse(result.ok)
-        self.assertTrue(
-            any("cannot allow full download" in issue.message for issue in result.issues)
-        )
+        self.assertTrue(result.ok)
+        self.assertTrue(any("Broken markdown link" in issue.message for issue in result.issues))
 
 
-def _write_minimal_bundle(root: Path) -> None:
-    (root / "claims").mkdir(parents=True)
-    (root / "sources").mkdir(parents=True)
-    (root / "index.md").write_text("# Test Bundle\n", encoding="utf-8")
+def _write_minimal_wiki(root: Path) -> None:
+    (root / "raw" / "sources").mkdir(parents=True)
+    (root / "wiki" / "topics").mkdir(parents=True)
+    (root / "audits").mkdir()
+    (root / "AGENTS.md").write_text("# Agents\n", encoding="utf-8")
+    (root / "index.md").write_text("# Wiki\n", encoding="utf-8")
     (root / "log.md").write_text("# Log\n", encoding="utf-8")
-    (root / "claims" / "index.md").write_text("# Claims\n", encoding="utf-8")
-    (root / "sources" / "index.md").write_text("# Sources\n", encoding="utf-8")
-    (root / "access.md").write_text(
+    (root / "raw" / "index.md").write_text("# Raw\n", encoding="utf-8")
+    (root / "raw" / "sources" / "index.md").write_text("# Sources\n", encoding="utf-8")
+    (root / "wiki" / "index.md").write_text("# Wiki\n", encoding="utf-8")
+    (root / "wiki" / "topics" / "index.md").write_text("# Topics\n", encoding="utf-8")
+    (root / "audits" / "index.md").write_text("# Audits\n", encoding="utf-8")
+    (root / "raw" / "sources" / "source.md").write_text(
         """---
-type: Access Policy
-title: Open Policy
-description: Valid open policy.
-mode: open
-download: allowed
-query: local
----
-
-# Access Policy
-
-Valid.
-""",
-        encoding="utf-8",
-    )
-    (root / "sources" / "source.md").write_text(
-        """---
-type: Source
+type: raw_source
 title: Source
-description: Test source.
 resource: https://example.com/source
 publisher: Example
-retrieved_at: 2026-07-01
+retrieved_at: 2026-07-04
 ---
 
 # Source
-
-Test.
 """,
         encoding="utf-8",
     )

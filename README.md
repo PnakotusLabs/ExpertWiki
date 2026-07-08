@@ -1,57 +1,80 @@
 # ExpertWiki
 
-ExpertWiki is a human-verified OKF knowledge API for agents.
+ExpertWiki is a local-first authoring CLI for LLM Wikis.
 
-The first MVP targets agent developers who need current, source-audited answers
-about AI engineering tools, APIs, and integration patterns. The core artifact is
-an Open Knowledge Format bundle: a directory of markdown concept files with YAML
-frontmatter. The API is a consumer of that bundle, not the source of truth.
+An ExpertWiki bundle is a directory of Markdown files that an agent can read,
+edit, link, lint, query, audit, and package. The durable knowledge unit is a
+wiki page. Raw sources are preserved under `raw/`; synthesized pages live under
+`wiki/`; navigation is maintained through `index.md`, `log.md`, and Markdown
+links.
 
-## MVP Shape
+The project follows the LLM Wiki idea:
+https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-- Authoring CLI first, local API/MCP adapters later.
-- OKF bundle first, database later.
-- Claim-level provenance rather than page-level citations.
-- Expert review, source audit, editor identity, and cross-checks as first-class
-  metadata.
-- Local bundle tooling so Codex, Claude Code, Cursor, and custom agents can help
-  users create, lint, query, audit, and package their own knowledge.
-- Registry and marketplace backends stay outside this open-source authoring
-  repo; this repo may provide client commands and publish-preflight checks.
+## Project Shape
 
-## Long-term Direction
+- Local authoring CLI first.
+- Markdown pages first.
+- Raw sources preserved before synthesis.
+- Interlinked wiki pages under `wiki/`.
+- `AGENTS.md`, `index.md`, and `log.md` as the agent operating surface.
+- Local API and MCP adapters after the file contract is stable.
 
-ExpertWiki is being developed toward a local-first knowledge exchange
-marketplace for agent-maintained LLM Wikis. Users should be able to compile
-their own private knowledge locally, publish selected verified bundles to an
-organization or public registry, and receive nomination, reputation, or future
-rewards when others reuse that knowledge. Open bundles may be installed locally;
-paid, private, or enterprise bundles should default to permissioned remote
-queries rather than full bundle download.
+## Bundle Layout
 
-This open-source repo is the local authoring CLI and local wiki runtime. It
-should stay fully inspectable, forkable, and useful offline. Marketplace
-backends, paid/private remote query enforcement, reward settlement, and anti-abuse
-systems belong in a separate registry service; this repo may provide client
-commands and publish-preflight tooling for that service.
+```text
+my-wiki/
+  AGENTS.md
+  index.md
+  log.md
 
-See [Long-term Development Principles](docs/long-term-principles.md).
+  raw/
+    index.md
+    sources/
+      notes.md
 
-## Codex Usage
+  wiki/
+    index.md
+    topics/
+      oauth.md
+    entities/
+    comparisons/
+    synthesis/
 
-This repository is intended to be usable through Codex and other local coding
-agents. Agents should read [AGENTS.md](AGENTS.md) first, then use
-`expertwiki status <bundle> --json` to understand bundle state before changing
-files.
-
-Additional agent-facing references:
-
-- [CLI Contract](docs/cli-contract.md)
-- [Codex Workflows](docs/codex-workflows.md)
+  audits/
+    index.md
+```
 
 ## Quick Start
 
-This prototype uses only the Python standard library.
+Install the local CLI from a checkout:
+
+```bash
+python3 -m pip install -e .
+```
+
+If your shell cannot find the installed `expertwiki` script, run the same
+commands as `python3 -m expertwiki.cli ...`.
+
+Create a wiki:
+
+```bash
+expertwiki init my-wiki --title "Engineering Notes"
+expertwiki ingest my-wiki ./notes.md --publisher "Me" --slug notes
+expertwiki page create my-wiki wiki/topics/notes.md \
+  --title "Notes" \
+  --source notes
+expertwiki lint my-wiki
+expertwiki query my-wiki "notes"
+```
+
+Run from source without installing:
+
+```bash
+PYTHONPATH=src python3 -m expertwiki.cli status bundles/expertwiki-ai-agent-engineering --json
+```
+
+Run the local API:
 
 ```bash
 PYTHONPATH=src python3 -m expertwiki.server \
@@ -59,49 +82,37 @@ PYTHONPATH=src python3 -m expertwiki.server \
   --port 8765
 ```
 
-Then query it:
+Query it:
 
 ```bash
-curl "http://127.0.0.1:8765/search?q=MCP"
-curl "http://127.0.0.1:8765/claims/mcp-open-standard"
+curl "http://127.0.0.1:8765/search?q=LLM%20Wiki"
+curl "http://127.0.0.1:8765/pages/topics/llm-wiki"
 ```
 
-Check an OKF bundle:
+## CLI
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli lint bundles/expertwiki-ai-agent-engineering
-```
-
-Create and manage a local bundle:
-
-```bash
-PYTHONPATH=src python3 -m expertwiki.cli init my-wiki --title "My Wiki"
-PYTHONPATH=src python3 -m expertwiki.cli status my-wiki --json
-PYTHONPATH=src python3 -m expertwiki.cli ingest my-wiki ./notes.md --publisher "Me"
-PYTHONPATH=src python3 -m expertwiki.cli compile my-wiki notes --claim "Draft claim to review."
-PYTHONPATH=src python3 -m expertwiki.cli list my-wiki claims --status draft
-PYTHONPATH=src python3 -m expertwiki.cli show my-wiki notes --kind sources
-PYTHONPATH=src python3 -m expertwiki.cli verify my-wiki draft-claim-to-review --reviewer "me"
-PYTHONPATH=src python3 -m expertwiki.cli mark my-wiki draft-claim-to-review --status stale --reason "Needs refresh"
-PYTHONPATH=src python3 -m expertwiki.cli index my-wiki
-PYTHONPATH=src python3 -m expertwiki.cli query my-wiki "What do we know?"
-PYTHONPATH=src python3 -m expertwiki.cli audit my-wiki
-PYTHONPATH=src python3 -m expertwiki.cli package my-wiki --dry-run
+expertwiki init <wiki> --title "<title>"
+expertwiki ingest <wiki> <file-or-url> --publisher "<publisher>" --slug <slug>
+expertwiki page create <wiki> wiki/topics/<page>.md --title "<title>" --source <source-ref>
+expertwiki list <wiki> pages
+expertwiki show <wiki> wiki/topics/<page>.md
+expertwiki query <wiki> "<query>"
+expertwiki lint <wiki>
+expertwiki audit <wiki>
+expertwiki package <wiki> --dry-run
 ```
 
 ## Repository Layout
 
 ```text
-bundles/              OKF knowledge bundles consumed by agents and APIs
-docs/                 Product, architecture, and verification policy
-src/expertwiki/       Dependency-free API prototype
-tests/                Unit tests for loading and search behavior
-THIRD_PARTY_NOTICES.md Third-party license notices for adapted code and ideas
+bundles/              Example LLM Wiki bundles
+docs/                 Architecture, CLI, and agent workflow notes
+src/expertwiki/       Dependency-free local CLI and API
+tests/                Unit tests for authoring, linting, and search
 ```
 
 ## Status
 
-This is a foundation for validating the local authoring direction against the
-Karpathy/OKF vision. It is intentionally small and dependency-free until the
-bundle contract, review model, authoring CLI, and local adapter surface are
-proven.
+This is an early implementation focused on the file contract, CLI ergonomics,
+and agent-maintained Markdown wiki workflow.

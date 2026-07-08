@@ -1,4 +1,4 @@
-"""ExpertWiki dependency-free API prototype."""
+"""ExpertWiki local LLM Wiki runtime."""
 
 __all__ = ["KnowledgeStore"]
 

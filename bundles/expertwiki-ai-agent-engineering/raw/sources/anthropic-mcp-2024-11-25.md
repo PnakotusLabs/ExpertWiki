@@ -1,16 +1,15 @@
 ---
-type: Source
+type: raw_source
 title: Introducing the Model Context Protocol
 description: Anthropic announcement introducing MCP.
 resource: https://www.anthropic.com/news/model-context-protocol
-tags: [anthropic, mcp]
-timestamp: 2026-07-01T00:00:00Z
 publisher: Anthropic
-published_at: 2024-11-25
-retrieved_at: 2026-07-01
+retrieved_at: 2026-07-04
+source_kind: url
+created_at: 2026-07-04T00:00:00Z
 ---
 
-# Source Notes
+# Source
 
 Official announcement for Model Context Protocol.
 

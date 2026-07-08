@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 
-RESERVED_FILENAMES = {"index.md", "log.md"}
+RESERVED_FILENAMES = {"AGENTS.md", "index.md", "log.md"}
 
 
 @dataclass(frozen=True)
@@ -47,7 +47,7 @@ def parse_okf_concept(root: Path, path: Path) -> OkfConcept:
 def parse_frontmatter(text: str, path: Path) -> tuple[dict[str, Any], str]:
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
-        raise ValueError(f"OKF concept missing frontmatter: {path}")
+        raise ValueError(f"Markdown concept missing frontmatter: {path}")
 
     end_index = None
     for index, line in enumerate(lines[1:], start=1):
@@ -55,12 +55,12 @@ def parse_frontmatter(text: str, path: Path) -> tuple[dict[str, Any], str]:
             end_index = index
             break
     if end_index is None:
-        raise ValueError(f"OKF concept has unterminated frontmatter: {path}")
+        raise ValueError(f"Markdown concept has unterminated frontmatter: {path}")
 
     metadata = _parse_simple_yaml(lines[1:end_index], path)
     concept_type = metadata.get("type")
     if not isinstance(concept_type, str) or not concept_type:
-        raise ValueError(f"OKF concept missing required type field: {path}")
+        raise ValueError(f"Markdown concept missing required type field: {path}")
 
     body = "\n".join(lines[end_index + 1 :])
     return metadata, body
@@ -106,6 +106,9 @@ def _parse_simple_yaml(lines: list[str], path: Path) -> dict[str, Any]:
     for line_number, raw_line in enumerate(lines, start=2):
         if raw_line.startswith("  - ") and current_key:
             current_value = metadata.setdefault(current_key, [])
+            if current_value == "":
+                current_value = []
+                metadata[current_key] = current_value
             if not isinstance(current_value, list):
                 raise ValueError(
                     f"Frontmatter field is not a list in {path}:{line_number}"
@@ -129,7 +132,7 @@ def _parse_simple_yaml(lines: list[str], path: Path) -> dict[str, Any]:
 
 def _parse_scalar(value: str) -> Any:
     if value == "":
-        return []
+        return ""
     if value in {"null", "Null", "NULL", "~"}:
         return None
     if value in {"true", "True", "TRUE"}:

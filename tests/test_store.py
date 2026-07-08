@@ -10,22 +10,21 @@ class KnowledgeStoreTest(unittest.TestCase):
     def test_health_counts_loaded_records(self) -> None:
         self.assertEqual(
             self.store.health(),
-            {"status": "ok", "source_count": 5, "claim_count": 5},
+            {"status": "ok", "source_count": 3, "page_count": 3},
         )
 
-    def test_search_returns_verified_claims(self) -> None:
-        results = self.store.search("MCP open standard")
-        self.assertEqual(results[0]["claim"]["id"], "mcp-open-standard")
-        self.assertEqual(results[0]["claim"]["status"], "verified")
+    def test_search_returns_wiki_pages(self) -> None:
+        results = self.store.search("LLM Wiki")
+        self.assertEqual(results[0]["page"]["id"], "topics/llm-wiki")
 
-    def test_get_claim_includes_source_records(self) -> None:
-        claim = self.store.get_claim("openai-file-search-vector-store")
-        self.assertIsNotNone(claim)
-        assert claim is not None
-        self.assertEqual(claim["source_records"][0]["publisher"], "OpenAI Developers")
+    def test_get_page_includes_source_records(self) -> None:
+        page = self.store.get_page("topics/llm-wiki")
+        self.assertIsNotNone(page)
+        assert page is not None
+        self.assertEqual(page["source_records"][0]["publisher"], "Andrej Karpathy / GitHub Gist")
 
-    def test_missing_claim_returns_none(self) -> None:
-        self.assertIsNone(self.store.get_claim("missing"))
+    def test_missing_page_returns_none(self) -> None:
+        self.assertIsNone(self.store.get_page("missing"))
 
     def test_empty_query_returns_no_results(self) -> None:
         self.assertEqual(self.store.search(""), [])

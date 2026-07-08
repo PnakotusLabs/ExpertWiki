@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .models import Claim, Source, source_from_okf_concept
+from .models import RawSource, WikiPage
 from .okf import load_okf_concepts
 
 
@@ -14,81 +14,89 @@ TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 class KnowledgeStore:
     def __init__(self, data_dir: str | Path) -> None:
         self.data_dir = Path(data_dir)
-        self.sources, self.claims = self._load_okf_bundle()
+        self.sources, self.pages = self._load_bundle()
 
     def health(self) -> dict[str, Any]:
         return {
             "status": "ok",
             "source_count": len(self.sources),
-            "claim_count": len(self.claims),
+            "page_count": len(self.pages),
         }
 
-    def get_claim(self, claim_id: str) -> dict[str, Any] | None:
-        claim = self.claims.get(claim_id)
-        if claim is None:
+    def get_page(self, page_id: str) -> dict[str, Any] | None:
+        page = self.pages.get(page_id)
+        if page is None:
             return None
-        return claim.to_dict(self.sources)
+        return page.to_dict(self.sources)
 
-    def search(
-        self,
-        query: str,
-        *,
-        status: str | None = "verified",
-        limit: int = 10,
-    ) -> list[dict[str, Any]]:
+    def search(self, query: str, *, limit: int = 10) -> list[dict[str, Any]]:
         query_tokens = _tokens(query)
         if not query_tokens:
             return []
 
-        scored: list[tuple[int, Claim]] = []
-        for claim in self.claims.values():
-            if status is not None and claim.status != status:
-                continue
-            haystack = " ".join([claim.text, claim.topic, *claim.entities])
-            score = _score(query_tokens, _tokens(haystack))
+        scored: list[tuple[int, WikiPage]] = []
+        for page in self.pages.values():
+            score = _score_page(query, query_tokens, page)
             if score:
-                scored.append((score, claim))
+                scored.append((score, page))
 
         scored.sort(key=lambda item: (-item[0], item[1].id))
         return [
-            {"score": score, "claim": claim.to_dict(self.sources)}
-            for score, claim in scored[:limit]
+            {"score": score, "page": page.to_dict(self.sources)}
+            for score, page in scored[:limit]
         ]
 
-    def _load_okf_bundle(self) -> tuple[dict[str, Source], dict[str, Claim]]:
+    def _load_bundle(self) -> tuple[dict[str, RawSource], dict[str, WikiPage]]:
         concepts = load_okf_concepts(self.data_dir)
         sources = {
-            source_from_okf_concept(concept).id: source_from_okf_concept(concept)
-            for concept in concepts.values()
-            if concept.type == "Source"
-        }
-        claims = {
-            claim.id: claim
-            for claim in (
-                Claim.from_okf_concept(concept)
+            source.id: source
+            for source in (
+                RawSource.from_concept(concept)
                 for concept in concepts.values()
-                if concept.type == "Verified Claim"
+                if concept.type == "raw_source"
             )
         }
-        self.sources = sources
-        self._validate_claim_sources(claims)
-        return sources, claims
+        pages = {
+            page.id: page
+            for page in (
+                WikiPage.from_concept(concept)
+                for concept in concepts.values()
+                if concept.type == "wiki_page"
+            )
+        }
+        _validate_page_sources(sources, pages)
+        return sources, pages
 
-    def _validate_claim_sources(self, claims: dict[str, Claim]) -> None:
-        missing_refs: list[str] = []
-        for claim in claims.values():
-            for source_ref in claim.sources:
-                source_id = source_ref.get("source_id")
-                if source_id not in self.sources:
-                    missing_refs.append(f"{claim.id}:{source_id}")
-        if missing_refs:
-            joined = ", ".join(missing_refs)
-            raise ValueError(f"Claims reference missing sources: {joined}")
+
+def _validate_page_sources(
+    sources: dict[str, RawSource],
+    pages: dict[str, WikiPage],
+) -> None:
+    missing_refs: list[str] = []
+    for page in pages.values():
+        for source_id in page.sources:
+            if source_id not in sources:
+                missing_refs.append(f"{page.id}:{source_id}")
+    if missing_refs:
+        joined = ", ".join(missing_refs)
+        raise ValueError(f"Pages reference missing sources: {joined}")
 
 
 def _tokens(text: str) -> set[str]:
     return set(TOKEN_PATTERN.findall(text.lower()))
 
 
-def _score(query_tokens: set[str], document_tokens: set[str]) -> int:
-    return len(query_tokens & document_tokens)
+def _score_page(query: str, query_tokens: set[str], page: WikiPage) -> int:
+    title_tokens = _tokens(page.title)
+    id_tokens = _tokens(page.id)
+    haystack = " ".join([page.title, page.description, page.body, *page.tags])
+    score = len(query_tokens & _tokens(haystack))
+
+    if query.strip().lower() == page.title.strip().lower():
+        score += 10
+    if query_tokens <= title_tokens:
+        score += 5
+    if query_tokens <= id_tokens:
+        score += 3
+
+    return score

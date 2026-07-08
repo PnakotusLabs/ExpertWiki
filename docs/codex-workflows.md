@@ -1,13 +1,13 @@
 # Codex Workflows
 
 These workflows describe how Codex should use the ExpertWiki CLI when helping a
-user maintain a local bundle.
+user maintain a local LLM Wiki.
 
 ## Create A Local Wiki
 
 User intent:
 
-> Create a new local ExpertWiki bundle for my engineering notes.
+> Create a local wiki for my engineering notes.
 
 Commands:
 
@@ -19,88 +19,60 @@ PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
 
 Expected behavior:
 
-- Do not upload anything.
-- Confirm the bundle path.
+- Confirm the wiki path.
 - Report next actions from `status`.
 
-## Add A Source And Draft A Claim
+## Add A Source
 
 User intent:
 
-> Add `docs/oauth.md` to my wiki and create draft claims, but do not verify them.
+> Add `docs/oauth.md` to my wiki.
 
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli ingest my-wiki docs/oauth.md --publisher "local notes"
-PYTHONPATH=src python3 -m expertwiki.cli compile my-wiki oauth --claim "<one draft claim>"
-PYTHONPATH=src python3 -m expertwiki.cli list my-wiki claims --status draft
+PYTHONPATH=src python3 -m expertwiki.cli ingest my-wiki docs/oauth.md --publisher "local notes" --slug oauth
 PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
 ```
 
 Expected behavior:
 
-- Create only draft claims.
-- Ask the user to review drafts.
-- Do not run `verify` without explicit approval.
+- Preserve the source under `raw/sources/`.
+- Rebuild indexes.
 
-## Verify A Claim
+## Create A Wiki Page
 
 User intent:
 
-> I reviewed this draft claim and approve it.
+> Create a topic page about OAuth from the source.
 
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli show my-wiki <claim-ref> --kind claims
-PYTHONPATH=src python3 -m expertwiki.cli verify my-wiki <claim-ref> --reviewer "<user>" --method source_audit --confidence high
-PYTHONPATH=src python3 -m expertwiki.cli query my-wiki "<relevant query>"
-```
-
-Expected behavior:
-
-- Record reviewer identity.
-- Set `verified_at`.
-- Confirm the claim appears in default query results.
-
-## Mark Knowledge As Stale Or Disputed
-
-User intent:
-
-> This claim is out of date.
-
-Commands:
-
-```bash
-PYTHONPATH=src python3 -m expertwiki.cli mark my-wiki <claim-ref> --status stale --reason "<reason>"
-PYTHONPATH=src python3 -m expertwiki.cli audit my-wiki
-PYTHONPATH=src python3 -m expertwiki.cli query my-wiki "<query>"
-```
-
-Expected behavior:
-
-- Keep the claim in the bundle.
-- Remove it from default trusted query results.
-- Record the lifecycle reason.
-
-## Package Preflight
-
-User intent:
-
-> Check whether this bundle is ready to share.
-
-Commands:
-
-```bash
+PYTHONPATH=src python3 -m expertwiki.cli page create my-wiki wiki/topics/oauth.md --title "OAuth" --source oauth
+PYTHONPATH=src python3 -m expertwiki.cli show my-wiki wiki/topics/oauth.md
 PYTHONPATH=src python3 -m expertwiki.cli lint my-wiki
-PYTHONPATH=src python3 -m expertwiki.cli audit my-wiki
-PYTHONPATH=src python3 -m expertwiki.cli package my-wiki --dry-run --json
 ```
 
 Expected behavior:
 
-- Do not upload.
-- Report blocking issues.
-- Remind the user that paid/private enforcement belongs to a registry service,
-  not this local CLI.
+- Create a Markdown page under `wiki/`.
+- Include a source reference.
+- Leave TODO sections for the user or agent to fill.
+
+## Query The Wiki
+
+User intent:
+
+> Search the wiki for OAuth notes.
+
+Commands:
+
+```bash
+PYTHONPATH=src python3 -m expertwiki.cli query my-wiki "OAuth notes" --json
+```
+
+Expected behavior:
+
+- Return matching wiki pages.
+- Include source metadata when available.

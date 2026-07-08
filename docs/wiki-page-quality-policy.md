@@ -1,14 +1,15 @@
-# Verification Policy
+# Wiki Page Quality Policy
 
-## Verification Standard
+## Page Quality Standard
 
-A claim can be marked `verified` only when:
+A useful wiki page should:
 
-1. The claim is supported by at least one reliable source.
-2. The source is linked and includes publication or retrieval metadata.
-3. The claim text does not overstate what the source says.
-4. A reviewer identity is recorded.
-5. The claim has a `last_verified_at` date.
+1. Have a clear title.
+2. Summarize one topic, entity, comparison, or synthesis.
+3. Link to related pages.
+4. Cite raw sources when source material exists.
+5. Record open questions.
+6. Stay readable as plain Markdown.
 
 ## Preferred Sources
 
@@ -19,38 +20,14 @@ Highest priority:
 - Company filings and official announcements.
 - Project repositories and release notes.
 
-Secondary sources can be used for context, but they should not be the only
-support for a high-impact technical claim when a primary source exists.
+Secondary sources can provide context and discovery paths.
 
-## Review Types
+## Maintenance Signals
 
-- `source_audit`: reviewer checked that the citation supports the claim.
-- `expert_review`: reviewer has domain expertise and approved the claim.
-- `cross_check`: second reviewer confirmed or challenged the claim.
-- `field_validation`: reviewer used the guidance in a real task and observed
-  the result.
+Agents should update pages when:
 
-## Negative States
-
-- `draft`: extracted or written but not reviewed.
-- `reviewed`: checked but not strong enough for verified status.
-- `disputed`: credible conflicting evidence exists.
-- `stale`: likely out of date or source changed.
-- `rejected`: unsupported, misleading, duplicated, or not useful to agents.
-
-## Staleness Triggers
-
-- Source page changed materially.
-- Product/API version changed.
-- User or agent reports contradiction.
-- Claim references pricing, model behavior, limits, regulations, or other
-  fast-changing facts older than the review window.
-
-## Review Windows
-
-Default review windows:
-
-- API behavior and limits: 30 days.
-- Pricing and availability: 14 days.
-- Security guidance: 30 days.
-- Stable standards and concepts: 180 days.
+- a source page changes materially,
+- a product or API version changes,
+- a user reports a contradiction,
+- an open question receives an answer,
+- a related page should be linked.

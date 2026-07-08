@@ -22,25 +22,23 @@ class ExpertWikiHandler(BaseHTTPRequestHandler):
         if parsed.path == "/search":
             params = parse_qs(parsed.query)
             query = params.get("q", [""])[0]
-            status = params.get("status", ["verified"])[0]
             limit = _parse_limit(params.get("limit", ["10"])[0])
             self._json(
                 HTTPStatus.OK,
                 {
                     "query": query,
-                    "status": status,
-                    "results": self.store.search(query, status=status, limit=limit),
+                    "results": self.store.search(query, limit=limit),
                 },
             )
             return
 
-        if parsed.path.startswith("/claims/"):
-            claim_id = parsed.path.removeprefix("/claims/")
-            claim = self.store.get_claim(claim_id)
-            if claim is None:
-                self._json(HTTPStatus.NOT_FOUND, {"error": "claim_not_found"})
+        if parsed.path.startswith("/pages/"):
+            page_id = parsed.path.removeprefix("/pages/")
+            page = self.store.get_page(page_id)
+            if page is None:
+                self._json(HTTPStatus.NOT_FOUND, {"error": "page_not_found"})
                 return
-            self._json(HTTPStatus.OK, claim)
+            self._json(HTTPStatus.OK, page)
             return
 
         self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
@@ -63,7 +61,7 @@ def create_server(host: str, port: int, store: KnowledgeStore) -> ThreadingHTTPS
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the ExpertWiki prototype API")
+    parser = argparse.ArgumentParser(description="Run the ExpertWiki local wiki API")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--data-dir", default="data")

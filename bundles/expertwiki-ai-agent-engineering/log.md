@@ -1,6 +1,9 @@
-# Bundle Update Log
+# Wiki Update Log
 
-## 2026-07-01
+## [2026-07-04] init | Created page-first LLM Wiki seed bundle
 
-* **Initialization**: Created OKF-first bundle for verified AI agent engineering knowledge.
-* **Creation**: Added first verified claim concepts and source concepts.
+## [2026-07-04] ingest | Added seed source records
+
+## [2026-07-04] page | Added initial interlinked wiki pages
+
+## [2026-07-04] query | 'LLM Wiki' -> 3 result(s)

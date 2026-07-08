@@ -1,8 +1,8 @@
 [project]
 name = "expertwiki"
 version = "0.1.0"
-description = "Human-verified knowledge API for agents"
-requires-python = ">=3.11"
+description = "Local-first authoring CLI for LLM Wikis"
+requires-python = ">=3.9"
 dependencies = []
 
 [project.scripts]

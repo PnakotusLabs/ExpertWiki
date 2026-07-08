@@ -1,50 +1,54 @@
-# OKF Alignment
+# Markdown Bundle Alignment
 
-## Vision Baseline
+## Baseline
 
-The product vision is based on Andrej Karpathy's LLM Wiki gist, not a separate
-repository. This implementation treats that gist as the conceptual source of
-truth and uses Google Cloud's Open Knowledge Format as the interoperable file
-format for the bundle.
+ExpertWiki follows the LLM Wiki idea:
 
-## Verifiable Alignment Sources
+https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-This implementation aligns to:
+The durable artifact is a local Markdown bundle:
 
-- Andrej Karpathy's LLM Wiki pattern:
-  https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
-- Google Cloud Open Knowledge Format announcement:
-  https://cloud.google.com/blog/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing
-- Google Cloud OKF v0.1 draft specification:
-  https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md
-
-## Product Interpretation
-
-ExpertWiki should not make a proprietary knowledge format the primary artifact.
-The primary artifact should be an OKF-compatible knowledge bundle:
-
-- a directory tree of markdown files,
-- YAML frontmatter on every concept document,
-- `type` as the only required field,
-- normal markdown links for relationships,
-- `index.md` for progressive disclosure,
+- a directory tree of Markdown files,
+- YAML frontmatter on source records and wiki pages,
+- `type` fields for producer-defined page kinds,
+- normal Markdown links for relationships,
+- `index.md` for navigation,
 - `log.md` for update history,
-- citations at the bottom of sourced concepts.
+- source citations inside pages.
 
-ExpertWiki-specific verification metadata is added as producer-defined
-frontmatter fields, which OKF consumers are expected to tolerate:
+## Concept Types
 
-- `status`
-- `confidence`
-- `reviewers`
-- `verified_at`
-- `sources`
+ExpertWiki currently uses:
 
-## Alignment Gaps To Resolve
+- `raw_source`
+- `wiki_page`
+- `audit_report`
 
-1. Decide whether `Verified Claim` should remain the core concept type or be
-   split into `Claim`, `Review`, and `Source`.
-2. Implement an MCP server as the primary agent interface.
-3. Add OKF conformance checks for frontmatter and reserved filenames.
-4. Add a producer workflow that drafts OKF concepts from official docs and sends
-   them through human review.
+## Page Contract
+
+Wiki pages are the primary unit. A page can represent a topic, entity,
+comparison, or synthesis.
+
+Recommended page frontmatter:
+
+```yaml
+type: wiki_page
+title: OAuth
+description: Notes about OAuth token handling.
+tags: [oauth, auth]
+sources:
+  - /raw/sources/oauth.md
+updated_at: 2026-07-04
+```
+
+## Source Contract
+
+Raw source records preserve source metadata and extracted notes.
+
+```yaml
+type: raw_source
+title: OAuth Notes
+resource: /absolute/path/or/url
+publisher: Me
+retrieved_at: 2026-07-04
+```
