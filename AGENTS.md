@@ -3,6 +3,16 @@
 ExpertWiki is a local-first authoring CLI for LLM Wikis. Treat this repository
 as user-owned local tooling.
 
+## Related Repositories
+
+- Product CLI repository: `/Users/moshiwei/Documents/GitHub/ExpertWiki`
+  - Remote: `https://github.com/PnakotusLabs/ExpertWiki.git`
+- Website source repository: `/Users/moshiwei/Documents/GitHub/website`
+  - Remote: `https://github.com/PnakotusLabs/website.git`
+- GitHub Pages deployment repository: `PnakotusLabs/PnakotusLabs.github.io`
+  - Remote: `https://github.com/PnakotusLabs/PnakotusLabs.github.io.git`
+  - The website source repository also has a `pages` remote pointing to this deployment repository.
+
 ## Core Rules
 
 1. Preserve raw source material under `raw/sources/`.
@@ -31,7 +41,7 @@ PYTHONPATH=src python3 -m expertwiki.cli init <wiki> --title "<title>"
 Add source material:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli ingest <wiki> <file-or-url> --publisher "<publisher>" --slug <slug>
+PYTHONPATH=src python3 -m expertwiki.cli ingest <wiki> <local-file> --publisher "<publisher>" --slug <slug>
 ```
 
 Create a wiki page:

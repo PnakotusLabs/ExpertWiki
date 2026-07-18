@@ -1,4 +1,4 @@
-"""ExpertWiki local LLM Wiki runtime."""
+"""ExpertWiki local knowledge bundle runtime."""
 
 __all__ = ["KnowledgeStore"]
 

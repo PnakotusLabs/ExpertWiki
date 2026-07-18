@@ -5,11 +5,13 @@
 A useful wiki page should:
 
 1. Have a clear title.
-2. Summarize one topic, entity, comparison, or synthesis.
+2. Represent one expert, project, viewpoint, topic, comparison, or synthesis.
 3. Link to related pages.
 4. Cite raw sources when source material exists.
 5. Record open questions.
-6. Stay readable as plain Markdown.
+6. Declare `entity_type`, `status`, `quality`, `license`, source freshness, and
+   last review when the page is intended for agent delivery.
+7. Stay readable as plain Markdown.
 
 ## Preferred Sources
 

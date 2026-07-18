@@ -32,7 +32,24 @@ class ExpertWikiHandler(BaseHTTPRequestHandler):
             )
             return
 
+        if parsed.path == "/graph":
+            self._json(HTTPStatus.OK, self.store.graph())
+            return
+
+        if parsed.path == "/llms.txt":
+            self._text(HTTPStatus.OK, self.store.llms_txt())
+            return
+
         if parsed.path.startswith("/pages/"):
+            if parsed.path.endswith(".md"):
+                page_id = parsed.path.removeprefix("/pages/").removesuffix(".md")
+                markdown = self.store.get_page_markdown(page_id)
+                if markdown is None:
+                    self._json(HTTPStatus.NOT_FOUND, {"error": "page_not_found"})
+                    return
+                self._text(HTTPStatus.OK, markdown, content_type="text/markdown")
+                return
+
             page_id = parsed.path.removeprefix("/pages/")
             page = self.store.get_page(page_id)
             if page is None:
@@ -54,6 +71,20 @@ class ExpertWikiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def _text(
+        self,
+        status: HTTPStatus,
+        payload: str,
+        *,
+        content_type: str = "text/plain",
+    ) -> None:
+        encoded = payload.encode("utf-8")
+        self.send_response(status.value)
+        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.end_headers()
+        self.wfile.write(encoded)
+
 
 def create_server(host: str, port: int, store: KnowledgeStore) -> ThreadingHTTPServer:
     handler = type("ConfiguredExpertWikiHandler", (ExpertWikiHandler,), {"store": store})
@@ -61,7 +92,7 @@ def create_server(host: str, port: int, store: KnowledgeStore) -> ThreadingHTTPS
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the ExpertWiki local wiki API")
+    parser = argparse.ArgumentParser(description="Run the ExpertWiki local knowledge reader API")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--data-dir", default="data")

@@ -8,6 +8,8 @@ from .okf import RESERVED_FILENAMES, OkfConcept, load_okf_concepts, parse_okf_co
 
 
 ALLOWED_CONCEPT_TYPES = {"raw_source", "wiki_page", "audit_report"}
+ALLOWED_ENTITY_TYPES = {"expert", "project", "viewpoint", "topic", "comparison", "synthesis"}
+ALLOWED_QUALITY_STATES = {"unreviewed", "reviewed", "verified", "stale", "disputed", "rejected"}
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "suggestion": 2, "info": 3}
 MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
@@ -132,6 +134,15 @@ def _check_concepts(context: LintContext, concepts: dict[str, OkfConcept]) -> No
             _check_required_fields(context, concept, ("title",))
             if not concept.path.startswith("/wiki/"):
                 context.issue("warning", "wiki_page should live under wiki/", concept.path)
+            entity_type = concept.metadata.get("entity_type")
+            if entity_type not in ALLOWED_ENTITY_TYPES:
+                context.issue("warning", "wiki_page should declare a valid entity_type", concept.path)
+            quality = concept.metadata.get("quality")
+            if quality not in ALLOWED_QUALITY_STATES:
+                context.issue("warning", "wiki_page should declare a valid quality state", concept.path)
+            for field in ("license", "source_updated_at", "last_reviewed_at"):
+                if field not in concept.metadata:
+                    context.issue("suggestion", f"wiki_page has no {field} field", concept.path)
             sources = concept.metadata.get("sources")
             if sources is None:
                 context.issue("suggestion", "wiki_page has no sources list", concept.path)

@@ -5,11 +5,25 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
 
 from .linting import Issue, lint_bundle
 from .okf import RESERVED_FILENAMES, OkfConcept, load_okf_concepts, parse_okf_concept
 from .store import KnowledgeStore
+
+
+BUNDLE_DIRECTORIES = (
+    "raw",
+    "raw/sources",
+    "wiki",
+    "wiki/topics",
+    "wiki/entities",
+    "wiki/entities/experts",
+    "wiki/entities/projects",
+    "wiki/viewpoints",
+    "wiki/comparisons",
+    "wiki/synthesis",
+    "audits",
+)
 
 
 @dataclass(frozen=True)
@@ -91,25 +105,16 @@ def init_bundle(bundle_dir: str | Path, *, title: str | None = None) -> InitResu
     wiki_title = title or _title_from_path(root)
     created: list[Path] = []
 
-    for directory in (
-        "raw",
-        "raw/sources",
-        "wiki",
-        "wiki/topics",
-        "wiki/entities",
-        "wiki/comparisons",
-        "wiki/synthesis",
-        "audits",
-    ):
+    for directory in BUNDLE_DIRECTORIES:
         (root / directory).mkdir(parents=True, exist_ok=True)
 
     created.append(_write(root / "AGENTS.md", _agents_file(wiki_title)))
     created.append(_write(root / "index.md", _root_index(wiki_title)))
     created.append(_write(root / "log.md", "# Wiki Update Log\n"))
-    for directory in ("raw", "raw/sources", "wiki", "wiki/topics", "wiki/entities", "wiki/comparisons", "wiki/synthesis", "audits"):
+    for directory in BUNDLE_DIRECTORIES:
         created.append(_write(root / directory / "index.md", _directory_index(directory)))
 
-    append_log(root, "init", f"Initialized LLM Wiki '{wiki_title}'")
+    append_log(root, "init", f"Initialized ExpertWiki bundle '{wiki_title}'")
     return InitResult(
         root=str(root),
         created_files=[path.relative_to(root).as_posix() for path in created],
@@ -127,10 +132,14 @@ def ingest_source(
     root = Path(bundle_dir)
     _ensure_bundle(root)
 
-    is_url = _is_url(source)
-    source_path = None if is_url else Path(source)
-    if source_path is not None and not source_path.exists():
+    if source.startswith(("http://", "https://")):
+        raise ValueError("URL sources are not supported; provide a local file")
+
+    source_path = Path(source)
+    if not source_path.exists():
         raise ValueError(f"Source file does not exist: {source}")
+    if not source_path.is_file():
+        raise ValueError(f"Source must be a local file: {source}")
 
     source_title = title or _source_title(source, source_path)
     source_slug = slug or _slugify(source_title)
@@ -138,21 +147,21 @@ def ingest_source(
     if output_path.exists():
         raise ValueError(f"Source already exists: {output_path}")
 
-    resource = source if is_url else str(source_path.resolve())
+    resource = str(source_path.resolve())
     content = f"""---
 type: raw_source
 title: {source_title}
-description: Source material ingested into the local LLM Wiki.
+description: Source material ingested into the ExpertWiki bundle.
 resource: {resource}
 publisher: {publisher}
 retrieved_at: {_today()}
-source_kind: {"url" if is_url else "file"}
+source_kind: file
 created_at: {_timestamp()}
 ---
 
 # Source
 
-{_source_body(source, source_path, is_url)}
+{_source_body(source_path)}
 """
     _write(output_path, content)
     rebuild_indexes(root)
@@ -168,6 +177,7 @@ def create_page(
     description: str | None = None,
     sources: list[str] | None = None,
     tags: list[str] | None = None,
+    entity_type: str = "topic",
 ) -> PageResult:
     root = Path(bundle_dir)
     _ensure_bundle(root)
@@ -190,6 +200,7 @@ def create_page(
         description=description or "",
         tags=tags or [],
         sources=source_paths,
+        entity_type=entity_type,
     )
     _write(output_path, content)
     rebuild_indexes(root)
@@ -337,13 +348,13 @@ def _ensure_bundle(root: Path) -> None:
         raise ValueError(f"Wiki root does not exist: {root}")
     required = ("AGENTS.md", "index.md", "log.md", "raw", "wiki")
     if not all((root / path).exists() for path in required):
-        raise ValueError(f"Not an ExpertWiki LLM Wiki: {root}")
+        raise ValueError(f"Not an ExpertWiki bundle: {root}")
 
 
 def _agents_file(title: str) -> str:
     return f"""# {title} Agent Instructions
 
-This directory is a local ExpertWiki LLM Wiki bundle.
+This directory is a local ExpertWiki knowledge bundle.
 
 ExpertWiki provides the file contract, CLI operations, validation, and packaging
 checks. It does not provide a hosted model or automatic synthesis by itself.
@@ -352,9 +363,11 @@ content from preserved raw sources.
 
 ## Product Boundary
 
-- Treat PKM, bookmark, note, and capture tools as upstream source systems.
+- Treat GitHub, Hacker News, papers, posts, talks, docs, cases, expert
+  submissions, PKM tools, bookmarks, notes, and capture tools as upstream
+  source systems.
 - Treat `raw/sources/` as the preserved source record inside this bundle.
-- Treat `wiki/` as the synthesized knowledge layer.
+- Treat `wiki/` as the synthesized expert and professional knowledge layer.
 - Do not turn this bundle into a general note-taking inbox.
 - Do not delete or rewrite raw sources to make synthesis easier.
 
@@ -362,7 +375,8 @@ content from preserved raw sources.
 
 1. Read index.md and log.md before editing.
 2. Preserve source material under raw/sources/.
-3. Write synthesized pages under wiki/.
+3. Write synthesized expert, project, topic, comparison, and synthesis pages
+   under wiki/.
 4. Use Markdown links between related pages.
 5. Cite raw sources from each wiki page when source material exists.
 6. Run lint after write operations.
@@ -403,8 +417,10 @@ PYTHONPATH=src python3 -m expertwiki.cli status . --json
 Use the path to signal the page role:
 
 - `wiki/topics/`: stable concepts, themes, methods, or problem areas.
-- `wiki/entities/`: specific people, companies, products, projects, standards,
-  datasets, or protocols.
+- `wiki/entities/experts/`: expert profiles with domains, credentials,
+  representative viewpoints, evidence, conflicts, freshness, and contact paths.
+- `wiki/entities/projects/`: open-source projects, developer tools, standards,
+  products, protocols, or datasets.
 - `wiki/comparisons/`: tradeoffs between two or more options.
 - `wiki/synthesis/`: cross-source conclusions, recommendations, and higher-level
   judgments.
@@ -413,7 +429,8 @@ Examples:
 
 ```text
 wiki/topics/local-first-knowledge-management.md
-wiki/entities/memos.md
+wiki/entities/experts/example-expert.md
+wiki/entities/projects/memos.md
 wiki/comparisons/llm-wiki-and-rag.md
 wiki/synthesis/pkm-as-upstream-capture-layer.md
 ```
@@ -424,10 +441,12 @@ Before writing many pages, form a short page plan:
 
 1. List the raw sources that matter.
 2. Identify recurring concepts for `wiki/topics/`.
-3. Identify named projects, people, products, or standards for `wiki/entities/`.
-4. Identify decisions or tradeoffs for `wiki/comparisons/`.
-5. Identify conclusions that require multiple sources for `wiki/synthesis/`.
-6. Create only the pages that are useful now.
+3. Identify experts for `wiki/entities/experts/`.
+4. Identify projects, products, protocols, standards, or datasets for
+   `wiki/entities/projects/`.
+5. Identify decisions or tradeoffs for `wiki/comparisons/`.
+6. Identify conclusions that require multiple sources for `wiki/synthesis/`.
+7. Create only the pages that are useful now.
 
 The plan can live in the conversation with the user. Only write it into the
 bundle if the user asks for a durable planning artifact.
@@ -437,6 +456,8 @@ bundle if the user asks for a durable planning artifact.
 - Ground factual claims in listed sources.
 - Preserve uncertainty. Put unresolved issues in "Open Questions".
 - Do not invent sources, dates, quotations, or project capabilities.
+- Do not invent credentials, conflicts, affiliations, endorsements, or contact
+  paths.
 - Do not hide broken functionality with fallback prose.
 - Keep pages readable as ordinary Markdown.
 - Prefer explicit links to related pages.
@@ -461,7 +482,7 @@ Then fill the generated sections from the cited source material.
 def _root_index(title: str) -> str:
     return f"""# {title}
 
-This is a local LLM Wiki.
+This is a local ExpertWiki knowledge bundle.
 
 ## Navigation
 
@@ -482,33 +503,48 @@ def _wiki_page(
     description: str,
     tags: list[str],
     sources: list[str],
+    entity_type: str,
 ) -> str:
     return f"""---
 type: wiki_page
+entity_type: {entity_type}
 title: {title}
 description: {description}
 tags: [{", ".join(tags)}]
 sources: [{", ".join(sources)}]
+status: draft
+quality: unreviewed
+license: unknown
+source_updated_at: unknown
+last_reviewed_at: unknown
 updated_at: {_today()}
 ---
 
 # {title}
 
-## Summary
+## Context
 
-TODO: Summarize the topic from the cited sources.
+TODO: Record the project, stack, task, goal, constraints, role, and time/version.
 
-## Key Points
+## Facts
 
-- TODO
+TODO: Record what happened and the evidence for it.
 
-## Related Pages
+## Human Feedback
 
-- TODO
+TODO: Record what a person accepted, rejected, questioned, or changed.
 
-## Open Questions
+## Experience Rules
 
-- TODO
+TODO: Record what worked or failed and under which conditions.
+
+## Counterexamples and Risks
+
+TODO: Record when this rule does not apply or what can go wrong.
+
+## Confidence
+
+TODO: Use single_case, multiple_confirmed, verified, stale, or disputed and explain why.
 
 ## Sources
 
@@ -684,21 +720,12 @@ def _write(path: Path, content: str) -> Path:
     return path
 
 
-def _source_title(source: str, source_path: Path | None) -> str:
-    if source_path is not None:
-        first_heading = _first_markdown_heading(source_path)
-        return first_heading or _title_from_path(source_path)
-    parsed = urlparse(source)
-    return _title_from_path(Path(parsed.path or parsed.netloc))
+def _source_title(source: str, source_path: Path) -> str:
+    first_heading = _first_markdown_heading(source_path)
+    return first_heading or _title_from_path(source_path)
 
 
-def _source_body(source: str, source_path: Path | None, is_url: bool) -> str:
-    if is_url:
-        return (
-            f"Source URL: {source}\n\n"
-            "Content was not fetched automatically. Add source notes manually before writing wiki pages."
-        )
-    assert source_path is not None
+def _source_body(source_path: Path) -> str:
     return source_path.read_text(encoding="utf-8").strip()
 
 
@@ -708,11 +735,6 @@ def _first_markdown_heading(path: Path) -> str | None:
         if stripped.startswith("# "):
             return stripped.removeprefix("# ").strip()
     return None
-
-
-def _is_url(value: str) -> bool:
-    parsed = urlparse(value)
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def _title_from_path(path: Path) -> str:

@@ -2,114 +2,144 @@
 
 ## Product Direction
 
-ExpertWiki is a local-first authoring CLI for LLM Wikis.
+ExpertWiki is an expert encyclopedia and professional knowledge network for AI
+agents.
 
-The repository should help users and agents turn raw sources into durable,
+The repository should help users and agents turn raw sources about experts,
+projects, viewpoints, research, cases, and professional evidence into durable,
 interlinked Markdown pages. The output should remain readable in any Markdown
-viewer, reviewable in Git, and maintainable by coding agents.
+viewer, reviewable in Git, maintainable by coding agents, and suitable for
+future hosted knowledge APIs.
 
 ## North Star
 
-Be the transparent local tool that creates, maintains, validates, searches, and
-packages LLM Wiki bundles.
+Be the trusted knowledge layer that lets AI agents understand who said what,
+what evidence supports it, whether it is still valid, and which credentials,
+conflicts, and contacts matter.
 
 ## Strategic Memory
 
-PKM and capture tools are upstream systems. They help users save notes, links,
-snippets, highlights, files, and daily thoughts with low friction.
+The first market wedge is global open-source AI, agent, and developer tooling.
+This domain has public source material, visible experts, measurable project
+adoption, frequent technical debate, and strong demand from agent developers.
 
-ExpertWiki should not compete primarily as another note-taking or bookmark
-manager. Its durable value is the downstream compiler layer: turning raw,
-captured material into a trusted, source-preserving, reviewable, interlinked
-Markdown wiki.
+ExpertWiki should not compete primarily as another note-taking app, bookmark
+manager, or generic RAG chatbot. Its durable value is the expert knowledge
+layer: source-preserving pages that encode people, projects, representative
+claims, supporting evidence, freshness, credentials, conflicts, and contact
+paths in a format agents can use.
 
 The product strategy is:
 
 ```text
-PKM / capture tools
-  -> raw sources
-  -> ExpertWiki synthesis, links, provenance, lint, and audit
-  -> durable wiki bundle
+GitHub, Hacker News, papers, posts, talks, docs, cases, and expert submissions
+  -> raw source records
+  -> ExpertWiki expert, project, topic, viewpoint, and synthesis pages
+  -> agent-readable vertical knowledge database
+  -> local query, JSON graph, llms.txt, and stable citations
+  -> Context7-like context delivery
+  -> expert claims, ExpertContext API, licensing, and payout
 ```
 
-This distinction matters: PKM answers "how do I save and retrieve my material?"
-ExpertWiki answers "how do these materials become a maintainable knowledge
-system?"
+This distinction matters: capture tools answer "how do I save and retrieve my
+material?" Generic RAG answers "what text chunk matches this prompt?"
+ExpertWiki answers "which expert or project is credible on this question, what
+did they claim, and what evidence should an agent cite?"
 
 ## Lineage
 
-ExpertWiki follows the LLM Wiki idea:
+ExpertWiki uses the LLM Wiki pattern as a local artifact foundation, not as its
+primary category:
 
 https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
 
-The implementation focuses on:
+The implementation focuses that pattern on professional knowledge:
 
 1. preserving raw sources,
-2. writing Markdown wiki pages,
-3. linking related pages,
+2. writing expert, project, topic, viewpoint, and synthesis pages,
+3. linking related people, projects, claims, and evidence,
 4. maintaining index and log files,
-5. giving agents a small local CLI.
+5. giving agents a small local CLI and API.
 
 ## User Promise
 
-For knowledge authors:
+For agent developers:
 
-> I can ask my agent to organize my source material into a local Markdown wiki
-> that I control.
+> My agent can use stable, structured, citable expert knowledge instead of
+> relying only on web search, stale training data, or unreviewed snippets.
 
-For agent users:
+For experts:
 
-> My agent can read the wiki, follow links, inspect sources, and update pages
-> across sessions.
+> I can claim my expert page, correct my profile, publish deeper knowledge, and
+> gain AI citation, industry exposure, and qualified demand.
 
-For teams:
+For companies and sponsors:
 
-> Shared knowledge can live in a portable folder that works with Git, local
-> editors, and agent tools.
+> I can reach professional audiences through industry topics, databases,
+> knowledge APIs, brand placement, and targeted distribution.
 
 ## Core Product Loop
 
 ```text
-Create
-  -> initialize a local wiki
+Seed
+  -> collect public sources and adoption signals for one vertical
 
 Ingest
   -> preserve raw sources
 
 Write
-  -> create wiki pages
+  -> create expert, project, topic, viewpoint, and synthesis pages
 
 Link
-  -> connect related pages
+  -> connect experts, projects, claims, evidence, and topics
 
 Validate
-  -> lint structure, links, and source references
+  -> lint structure, links, source references, and freshness fields
 
 Use
-  -> query pages locally
+  -> let agents query, cite, inspect, and consume graph/export views
 
-Maintain
-  -> update pages and log changes
+Distribute
+  -> add MCP and versioned Context7-like delivery after the card contract is stable
+
+Claim
+  -> let experts improve and extend their pages
+
+Monetize
+  -> offer ExpertContext API, licensed vertical databases, and usage-based distribution
 ```
 
 ## Design Principles
 
-### Page-first
+### Expert-aware
 
-The primary knowledge unit is a Markdown wiki page.
+Pages should preserve who made a claim, what qualifies them, and what conflicts
+or affiliations may affect interpretation.
 
 ### Source-preserving
 
 Raw source records live under `raw/sources/` and remain available for future
 inspection.
 
+### Claim-and-evidence
+
+Professional assertions should be tied to sources, dates, and opposing evidence
+when practical.
+
+### Freshness-explicit
+
+Pages should make update dates and source dates visible so agents can avoid
+treating stale knowledge as current.
+
 ### Link-rich
 
-Pages should reference related pages with Markdown links.
+Pages should reference related experts, projects, topics, comparisons, and
+syntheses with Markdown links.
 
 ### Local-first
 
-The wiki should work as a local folder before any remote service exists.
+The knowledge bundle should work as a local folder before any remote service
+exists.
 
 ### Agent-readable
 
@@ -126,5 +156,7 @@ The bundle should remain useful in editors, GitHub, and ordinary Markdown tools.
 2. Simple CLI commands.
 3. Reliable lint checks.
 4. Local page search.
-5. Agent workflow documentation.
-6. Example LLM Wiki bundles.
+5. Page templates for experts, projects, viewpoints, topics, comparisons, and
+   syntheses.
+6. Agent workflow documentation.
+7. Example open-source AI and agent-tooling knowledge bundles.

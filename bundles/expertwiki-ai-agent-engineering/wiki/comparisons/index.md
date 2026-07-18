@@ -1,9 +1,9 @@
 # Comparisons Index
 
-Last updated: 2026-07-04
+Last updated: 2026-07-18
 
 ## Pages
 
 | File | Type | Description | Updated |
 |---|---|---|---|
-| [LLM Wiki And Retrieval](llm-wiki-and-retrieval.md) | wiki_page | Comparison between maintained wiki pages and retrieval systems. | 2026-07-04 |
+| [Knowledge Cards And Retrieval](knowledge-cards-and-retrieval.md) | wiki_page | Comparison between durable expert knowledge cards and query-time retrieval. | 2026-07-18 |

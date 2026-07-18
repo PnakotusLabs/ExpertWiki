@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
 from .authoring import (
     audit_bundle,
@@ -19,61 +20,71 @@ from .authoring import (
 from .linting import lint_bundle
 
 
+def _default_bundle_dir() -> str:
+    return str(Path.home() / ".expertwiki")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="expertwiki")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    init_parser = subparsers.add_parser("init", help="Create a local LLM Wiki")
+    init_parser = subparsers.add_parser("init", help="Create a local ExpertWiki knowledge bundle")
     init_parser.add_argument(
         "bundle_dir",
         nargs="?",
-        default="expertwiki",
-        help="Bundle directory to create. Defaults to ./expertwiki",
+        default=_default_bundle_dir(),
+        help="Bundle directory to create. Defaults to ~/.expertwiki",
     )
     init_parser.add_argument("--title")
     init_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    ingest_parser = subparsers.add_parser("ingest", help="Ingest a local file or URL as a raw source")
+    ingest_parser = subparsers.add_parser("ingest", help="Ingest a local file as a raw source")
     ingest_parser.add_argument("bundle_dir")
-    ingest_parser.add_argument("source")
+    ingest_parser.add_argument("source", help="Local text file to preserve as a raw source")
     ingest_parser.add_argument("--title")
     ingest_parser.add_argument("--publisher", default="Unknown")
     ingest_parser.add_argument("--slug")
     ingest_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    page_parser = subparsers.add_parser("page", help="Create or manage wiki pages")
+    page_parser = subparsers.add_parser("page", help="Create or manage knowledge cards")
     page_subparsers = page_parser.add_subparsers(dest="page_command", required=True)
-    page_create = page_subparsers.add_parser("create", help="Create a wiki page")
+    page_create = page_subparsers.add_parser("create", help="Create a knowledge card")
     page_create.add_argument("bundle_dir")
     page_create.add_argument("page_path")
     page_create.add_argument("--title", required=True)
     page_create.add_argument("--description")
     page_create.add_argument("--source", action="append", default=[])
     page_create.add_argument("--tag", action="append", default=[])
+    page_create.add_argument(
+        "--entity-type",
+        choices=["expert", "project", "viewpoint", "topic", "comparison", "synthesis"],
+        default="topic",
+        help="Knowledge card type written into frontmatter",
+    )
     page_create.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    list_parser = subparsers.add_parser("list", help="List wiki pages, sources, or audits")
+    list_parser = subparsers.add_parser("list", help="List knowledge cards, sources, or audits")
     list_parser.add_argument("bundle_dir")
     list_parser.add_argument("kind", choices=["pages", "sources", "audits"])
     list_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    show_parser = subparsers.add_parser("show", help="Show a wiki page, source, or audit")
+    show_parser = subparsers.add_parser("show", help="Show a knowledge card, source, or audit")
     show_parser.add_argument("bundle_dir")
     show_parser.add_argument("ref")
     show_parser.add_argument("--kind", choices=["pages", "sources", "audits"])
     show_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    query_parser = subparsers.add_parser("query", help="Search local wiki pages")
+    query_parser = subparsers.add_parser("query", help="Search local expert knowledge")
     query_parser.add_argument("bundle_dir")
     query_parser.add_argument("query")
     query_parser.add_argument("--limit", type=int, default=10)
     query_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    lint_parser = subparsers.add_parser("lint", help="Check a local LLM Wiki")
+    lint_parser = subparsers.add_parser("lint", help="Check a local ExpertWiki knowledge bundle")
     lint_parser.add_argument("bundle_dir")
     lint_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
-    status_parser = subparsers.add_parser("status", help="Summarize a wiki for agents")
+    status_parser = subparsers.add_parser("status", help="Summarize a knowledge bundle for agents")
     status_parser.add_argument("bundle_dir")
     status_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
@@ -111,6 +122,7 @@ def main(argv: list[str] | None = None) -> int:
                 description=args.description,
                 sources=args.source,
                 tags=args.tag,
+                entity_type=args.entity_type,
                 emit_json=args.json,
             )
         if args.command == "list":
@@ -142,7 +154,7 @@ def _run_init(bundle_dir: str, *, title: str | None, emit_json: bool) -> int:
     if emit_json:
         print(json.dumps(result.__dict__, indent=2, sort_keys=True))
     else:
-        print(f"Initialized ExpertWiki LLM Wiki at {result.root}")
+        print(f"Initialized ExpertWiki bundle at {result.root}")
         for path in result.created_files:
             print(f"created {path}")
     return 0
@@ -173,6 +185,7 @@ def _run_page_create(
     description: str | None,
     sources: list[str],
     tags: list[str],
+    entity_type: str,
     emit_json: bool,
 ) -> int:
     result = create_page(
@@ -182,6 +195,7 @@ def _run_page_create(
         description=description,
         sources=sources,
         tags=tags,
+        entity_type=entity_type,
     )
     if emit_json:
         print(json.dumps(result.__dict__, indent=2, sort_keys=True))

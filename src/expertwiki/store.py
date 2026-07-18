@@ -29,6 +29,58 @@ class KnowledgeStore:
             return None
         return page.to_dict(self.sources)
 
+    def get_page_markdown(self, page_id: str) -> str | None:
+        page = self.pages.get(page_id)
+        if page is None:
+            return None
+        path = self.data_dir / page.path.removeprefix("/")
+        return path.read_text(encoding="utf-8")
+
+    def graph(self) -> dict[str, Any]:
+        nodes: list[dict[str, Any]] = []
+        edges: list[dict[str, str]] = []
+        for page in self.pages.values():
+            nodes.append(
+                {
+                    "id": page.id,
+                    "type": "page",
+                    "title": page.title,
+                    "entity_type": page.entity_type,
+                    "quality": page.quality,
+                }
+            )
+            for source_id in page.sources:
+                edges.append({"from": page.id, "to": source_id, "type": "cites"})
+        for source in self.sources.values():
+            nodes.append({"id": source.id, "type": "source", "title": source.title})
+        return {"nodes": nodes, "edges": edges}
+
+    def llms_txt(self) -> str:
+        lines = [
+            f"# {_bundle_title(self.data_dir)}",
+            "",
+            "> Source-backed expert and project knowledge for AI agents.",
+            "",
+            "This file indexes the Markdown knowledge cards in this bundle. Read the linked Markdown pages for the source-backed details.",
+            "",
+            "## Pages",
+            "",
+        ]
+        for page in sorted(self.pages.values(), key=lambda item: item.id):
+            lines.append(
+                f"- [{page.title}](/pages/{page.id}.md): {page.description} "
+                f"Type: {page.entity_type}; quality: {page.quality}."
+            )
+        lines.extend(
+            [
+                "",
+                "## Optional",
+                "",
+                "- [Knowledge graph](/graph): JSON graph of knowledge cards, sources, and citation edges.",
+            ]
+        )
+        return "\n".join(lines) + "\n"
+
     def search(self, query: str, *, limit: int = 10) -> list[dict[str, Any]]:
         query_tokens = _tokens(query)
         if not query_tokens:
@@ -100,3 +152,13 @@ def _score_page(query: str, query_tokens: set[str], page: WikiPage) -> int:
         score += 3
 
     return score
+
+
+def _bundle_title(root: Path) -> str:
+    instructions = root / "AGENTS.md"
+    if instructions.exists():
+        for line in instructions.read_text(encoding="utf-8").splitlines():
+            if line.startswith("# "):
+                return line[2:].removesuffix(" Agent Instructions").strip()
+
+    return root.name

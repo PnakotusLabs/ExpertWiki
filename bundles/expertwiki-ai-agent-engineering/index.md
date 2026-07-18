@@ -1,10 +1,9 @@
-# AI Agent Engineering Wiki
+# expertwiki-ai-agent-engineering Index
 
-This is a local LLM Wiki for agent engineering notes.
+Last updated: 2026-07-18
 
-## Navigation
+## Directories
 
-* [Raw Sources](raw/)
-* [Wiki](wiki/)
 * [Audits](audits/)
-* [Update Log](log.md)
+* [Raw](raw/)
+* [Wiki](wiki/)

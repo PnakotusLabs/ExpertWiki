@@ -15,25 +15,34 @@ The closest direct competitor is [nashsu/llm_wiki](https://github.com/nashsu/llm
 
 The largest adjacent demand signal comes from repository-to-wiki systems such as [AsyncFuncAI/deepwiki-open](https://github.com/AsyncFuncAI/deepwiki-open), which had about 17.2k stars, and from private capture tools such as [usememos/memos](https://github.com/usememos/memos), [Joplin](https://github.com/laurent22/joplin), [SiYuan](https://github.com/siyuan-note/siyuan), [Logseq](https://github.com/logseq/logseq), [Karakeep](https://github.com/karakeep-app/karakeep), and [Linkwarden](https://github.com/linkwarden/linkwarden).
 
-The strategic implication is clear: ExpertWiki should not position itself as another generic note app or RAG chat system. Its strongest position is as a local-first, source-preserving, auditable wiki compiler that ingests raw material from capture tools and produces a structured, reviewable, portable wiki bundle.
+The current strategic implication is narrower and more ambitious: ExpertWiki
+should not position itself as another generic note app, directory, open
+standard, or RAG chat system. It should build the first vertical expert and
+project knowledge database for open-source AI, agents, and developer tools, then
+serve it through a Context7-like context layer. ExpertContext API is the future
+commercial layer for expert supply, licensing, citations, audit, metering, and
+payout.
 
 ## Decision Context
 
 The decision being evaluated:
 
-Should ExpertWiki compete mainly as a standalone LLM Wiki product, as an Obsidian/local Markdown companion, or as a downstream compiler for many capture sources?
+Should ExpertWiki treat LLM Wiki as the main product, a traffic layer, or a
+local artifact foundation for a vertical expert context infrastructure?
 
 Alternatives:
 
-1. Standalone LLM Wiki application.
-2. Obsidian-first plugin or workflow.
-3. Local-first command-line and agent workflow for compiling captured material into audited wiki bundles.
-4. Repository-to-wiki system focused on codebases.
-5. Capture-first note or bookmark application.
+1. Open standard or directory.
+2. Karpathy-style LLM Wiki traffic layer.
+3. Context7-like versioned context infrastructure.
+4. ExpertContext API and commercial knowledge network.
 
 Recommended strategic direction:
 
-ExpertWiki should prioritize option 3 while staying compatible with options 2 and 4. It should integrate with capture tools rather than replace them.
+ExpertWiki should prioritize option 3, use option 2 only as a distribution and
+traffic entry point, and keep option 4 as the commercial path after supply,
+citations, and usage are proven. Option 1 is not the main product because a
+directory or standard alone is easy to launch and easy to commoditize.
 
 ## Research Scope
 
@@ -217,7 +226,12 @@ This gap is the best strategic opening for ExpertWiki.
 
 Recommended positioning statement:
 
-ExpertWiki is a local-first, source-preserving LLM wiki compiler for serious knowledge work. It ingests raw material from files, notes, bookmarks, and repositories, then produces an auditable Markdown wiki bundle with links, indexes, logs, and provenance.
+ExpertWiki is the local knowledge substrate for a global expert encyclopedia and professional knowledge network for AI agents. The first wedge is open-source AI, agents, and developer tools: it turns public evidence into source-backed expert, project, and viewpoint cards, then exposes them through local query, API, JSON graph, and `llms.txt`.
+
+The strategic mainline is a Context7-like versioned context service. The
+commercial layer is ExpertContext API for expert supply, licensing, citations,
+audit, usage metering, and payout. Neither hosted layer is implemented in this
+repository yet.
 
 Avoid positioning ExpertWiki as:
 
@@ -227,7 +241,7 @@ Avoid positioning ExpertWiki as:
 - A pure Obsidian plugin.
 - A pure codebase documentation generator.
 
-## Strategic Options
+## Historical Strategic Options (superseded 2026-07-18)
 
 ### Option 1: Standalone LLM Wiki App
 
@@ -310,7 +324,7 @@ Confidence:
 
 - Medium.
 
-## Recommended Product Moves
+## Historical Product Moves (superseded 2026-07-18)
 
 ### 1. Build Capture-Source Ingestion Connectors
 

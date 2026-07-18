@@ -1,10 +1,11 @@
 # Wiki Index
 
-Last updated: 2026-07-04
+Last updated: 2026-07-18
 
 ## Directories
 
-* [Topics](topics/)
-* [Entities](entities/)
 * [Comparisons](comparisons/)
+* [Entities](entities/)
 * [Synthesis](synthesis/)
+* [Topics](topics/)
+* [Viewpoints](viewpoints/)

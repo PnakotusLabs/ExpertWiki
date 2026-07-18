@@ -1,6 +1,7 @@
 # AI Agent Engineering Wiki Agent Instructions
 
-This directory is a local ExpertWiki LLM Wiki bundle.
+This directory is a local ExpertWiki OKF bundle for open-source AI, agent, and
+developer-tool experts and projects.
 
 ExpertWiki provides the file contract, CLI operations, validation, and packaging
 checks. It does not provide a hosted model or automatic synthesis by itself.
@@ -9,17 +10,19 @@ content from preserved raw sources.
 
 ## Product Boundary
 
-- Treat PKM, bookmark, note, and capture tools as upstream source systems.
+- Treat GitHub, Hacker News, papers, talks, project docs, and expert submissions
+  as upstream source systems.
 - Treat `raw/sources/` as the preserved source record inside this bundle.
-- Treat `wiki/` as the synthesized knowledge layer.
-- Do not turn this bundle into a general note-taking inbox.
+- Treat `wiki/` as the synthesized expert and project knowledge layer.
+- Do not turn this bundle into a general note-taking inbox or generic directory.
 - Do not delete or rewrite raw sources to make synthesis easier.
 
 ## Workflow
 
 1. Read index.md and log.md before editing.
 2. Preserve source material under raw/sources/.
-3. Write synthesized pages under wiki/.
+3. Write synthesized expert, project, topic, viewpoint, comparison, and
+   synthesis pages under wiki/.
 4. Use Markdown links between related pages.
 5. Cite raw sources from each wiki page when source material exists.
 6. Run lint after write operations.
@@ -60,8 +63,11 @@ PYTHONPATH=src python3 -m expertwiki.cli status . --json
 Use the path to signal the page role:
 
 - `wiki/topics/`: stable concepts, themes, methods, or problem areas.
-- `wiki/entities/`: specific people, companies, products, projects, standards,
-  datasets, or protocols.
+- `wiki/entities/experts/`: expert profiles, viewpoints, credentials, conflicts,
+  and contact paths.
+- `wiki/entities/projects/`: projects, products, standards, datasets, and
+  protocols.
+- `wiki/viewpoints/`: attributable claims and professional positions.
 - `wiki/comparisons/`: tradeoffs between two or more options.
 - `wiki/synthesis/`: cross-source conclusions, recommendations, and higher-level
   judgments.
@@ -69,10 +75,11 @@ Use the path to signal the page role:
 Examples:
 
 ```text
-wiki/topics/local-first-knowledge-management.md
-wiki/entities/memos.md
-wiki/comparisons/llm-wiki-and-rag.md
-wiki/synthesis/pkm-as-upstream-capture-layer.md
+wiki/topics/agent-knowledge-bundles.md
+wiki/entities/experts/andrej-karpathy.md
+wiki/entities/projects/model-context-protocol.md
+wiki/viewpoints/context-as-infrastructure.md
+wiki/comparisons/knowledge-cards-and-retrieval.md
 ```
 
 ## Synthesis Planning
@@ -81,10 +88,12 @@ Before writing many pages, form a short page plan:
 
 1. List the raw sources that matter.
 2. Identify recurring concepts for `wiki/topics/`.
-3. Identify named projects, people, products, or standards for `wiki/entities/`.
-4. Identify decisions or tradeoffs for `wiki/comparisons/`.
-5. Identify conclusions that require multiple sources for `wiki/synthesis/`.
-6. Create only the pages that are useful now.
+3. Identify experts for `wiki/entities/experts/` and projects for
+   `wiki/entities/projects/`.
+4. Identify attributable viewpoints for `wiki/viewpoints/`.
+5. Identify decisions or tradeoffs for `wiki/comparisons/`.
+6. Identify conclusions that require multiple sources for `wiki/synthesis/`.
+7. Create only the pages that are useful now.
 
 The plan can live in the conversation with the user. Only write it into the
 bundle if the user asks for a durable planning artifact.

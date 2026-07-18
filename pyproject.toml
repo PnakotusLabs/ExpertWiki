@@ -1,7 +1,7 @@
 [project]
 name = "expertwiki"
 version = "0.1.0"
-description = "Local-first authoring CLI for LLM Wikis"
+description = "Agent-readable expert encyclopedia and knowledge bundle CLI"
 requires-python = ">=3.9"
 dependencies = []
 

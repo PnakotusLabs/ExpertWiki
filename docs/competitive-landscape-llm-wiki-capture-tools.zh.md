@@ -15,25 +15,24 @@ ExpertWiki 位于两个活跃品类之间：
 
 最大的相邻需求信号来自代码仓库到 wiki 系统，例如 [AsyncFuncAI/deepwiki-open](https://github.com/AsyncFuncAI/deepwiki-open)，截至 2026-07-09 约 17.2k stars；以及私有捕捉工具，例如 [usememos/memos](https://github.com/usememos/memos)、[Joplin](https://github.com/laurent22/joplin)、[SiYuan](https://github.com/siyuan-note/siyuan)、[Logseq](https://github.com/logseq/logseq)、[Karakeep](https://github.com/karakeep-app/karakeep) 和 [Linkwarden](https://github.com/linkwarden/linkwarden)。
 
-核心战略含义很清楚：ExpertWiki 不应该把自己定位成又一个通用笔记应用或 RAG 聊天系统。它最强的位置是一个本地优先、保留源材料、可审计的 wiki 编译器：从各种 capture 工具中摄取原始材料，然后产出结构化、可 review、可携带的 wiki bundle。
+当前战略含义更明确：ExpertWiki 不应该把自己定位成又一个通用笔记应用、开放目录、开放标准或 RAG 聊天系统。应先建立全球开源 AI、Agent 和开发者工具领域的专家与项目知识数据库，再通过 Context7-like 上下文基础设施分发。ExpertContext API 是后续商业层，负责专家供给、授权、引用、审计、调用计量和结算。
 
 ## 决策背景
 
 正在评估的决策：
 
-ExpertWiki 应该主要竞争为独立 LLM Wiki 产品、Obsidian/本地 Markdown 伴侣，还是多个 capture 来源的下游编译器？
+ExpertWiki 应该把 LLM Wiki 当作主产品、流量层，还是面向垂直专家上下文基础设施的本地 artifact foundation？
 
 可选方向：
 
-1. 独立 LLM Wiki 应用。
-2. Obsidian-first 插件或工作流。
-3. 本地优先的命令行与 agent 工作流，用于把捕捉到的材料编译成可审计 wiki bundle。
-4. 面向代码库的 repository-to-wiki 系统。
-5. capture-first 笔记或书签应用。
+1. 开放标准或目录。
+2. Karpathy 风格的 LLM Wiki 流量层。
+3. Context7-like 版本化上下文基础设施。
+4. ExpertContext API 与商业化知识网络。
 
 建议的战略方向：
 
-ExpertWiki 应优先选择方向 3，同时兼容方向 2 和方向 4。它应该集成 capture 工具，而不是替代它们。
+ExpertWiki 应优先选择方向 3，把方向 2 作为流量和分发入口，把方向 4 作为专家供给、引用和使用被验证后的商业路径。方向 1 不应成为主产品，因为目录或标准容易 launch，也容易被商品化。
 
 ## 调研范围
 
@@ -217,7 +216,9 @@ ExpertWiki 最强的上游来源是：
 
 推荐定位语：
 
-ExpertWiki 是一个面向严肃知识工作的本地优先、保留源材料的 LLM wiki 编译器。它从文件、笔记、书签和代码仓库中摄取原始材料，然后生成带链接、索引、日志和 provenance 的可审计 Markdown wiki bundle。
+ExpertWiki 是面向 AI Agent 的全球专家百科与专业知识网络的本地知识基础设施。第一阶段切入全球开源 AI、Agent 和开发者工具，把公开证据整理成有来源的专家、项目和观点知识卡，再通过本地 query、API、JSON graph 和 `llms.txt` 分发。
+
+战略主线是 Context7-like 的版本化上下文服务；商业化主线是 ExpertContext API，负责专家供给、授权、引用、审计、调用计量和结算。这些 hosted 能力尚未在本仓库实现。
 
 避免把 ExpertWiki 定位成：
 
@@ -227,7 +228,7 @@ ExpertWiki 是一个面向严肃知识工作的本地优先、保留源材料的
 - 纯 Obsidian 插件。
 - 纯代码库文档生成器。
 
-## 战略选项
+## 历史战略选项（2026-07-18 起不再作为主线）
 
 ### 选项 1：独立 LLM Wiki 应用
 
@@ -310,7 +311,7 @@ ExpertWiki 是一个面向严肃知识工作的本地优先、保留源材料的
 
 - 中。
 
-## 推荐产品动作
+## 历史产品动作（2026-07-18 起不再作为主线）
 
 ### 1. 构建 capture-source ingestion connectors
 

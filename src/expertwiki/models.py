@@ -52,6 +52,12 @@ class WikiPage:
     sources: list[str]
     body: str
     updated_at: str
+    entity_type: str
+    status: str
+    quality: str
+    license: str
+    source_updated_at: str
+    last_reviewed_at: str
 
     def to_dict(self, sources: dict[str, RawSource] | None = None) -> dict[str, Any]:
         payload: dict[str, Any] = {
@@ -62,6 +68,12 @@ class WikiPage:
             "tags": self.tags,
             "sources": self.sources,
             "updated_at": self.updated_at,
+            "entity_type": self.entity_type,
+            "status": self.status,
+            "quality": self.quality,
+            "license": self.license,
+            "source_updated_at": self.source_updated_at,
+            "last_reviewed_at": self.last_reviewed_at,
             "body": self.body,
         }
         if sources is not None:
@@ -86,6 +98,12 @@ class WikiPage:
             sources=[_source_id_from_path(str(path)) for path in _metadata_list(metadata, "sources")],
             body=concept.body,
             updated_at=_metadata_str(metadata, "updated_at", ""),
+            entity_type=_metadata_str(metadata, "entity_type", "topic"),
+            status=_metadata_str(metadata, "status", "draft"),
+            quality=_metadata_str(metadata, "quality", "unreviewed"),
+            license=_metadata_str(metadata, "license", "unknown"),
+            source_updated_at=_metadata_str(metadata, "source_updated_at", "unknown"),
+            last_reviewed_at=_metadata_str(metadata, "last_reviewed_at", "unknown"),
         )
 
 

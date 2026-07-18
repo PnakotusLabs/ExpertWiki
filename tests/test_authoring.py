@@ -28,12 +28,17 @@ class AuthoringTest(unittest.TestCase):
             self.assertIn("AGENTS.md", result.created_files)
             self.assertTrue((root / "raw" / "sources" / "index.md").exists())
             self.assertTrue((root / "wiki" / "topics" / "index.md").exists())
+            self.assertTrue((root / "wiki" / "entities" / "experts" / "index.md").exists())
+            self.assertTrue((root / "wiki" / "entities" / "projects" / "index.md").exists())
+            self.assertTrue((root / "wiki" / "viewpoints" / "index.md").exists())
             agents_text = (root / "AGENTS.md").read_text(encoding="utf-8")
             self.assertIn("Recommended Agent Loop", agents_text)
             self.assertIn("Page Type Guide", agents_text)
+            self.assertIn("wiki/entities/experts/", agents_text)
+            self.assertIn("wiki/entities/projects/", agents_text)
             self.assertIn("wiki/synthesis/", agents_text)
             self.assertTrue(lint_result.ok)
-            self.assertIn("init | Initialized LLM Wiki", (root / "log.md").read_text())
+            self.assertIn("init | Initialized ExpertWiki bundle", (root / "log.md").read_text())
 
     def test_init_refuses_non_empty_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -58,16 +63,23 @@ class AuthoringTest(unittest.TestCase):
             self.assertIn("type: raw_source", source_path.read_text())
             self.assertTrue(lint_bundle(root).ok)
 
-    def test_ingest_url_records_metadata_without_fetching(self) -> None:
+    def test_ingest_rejects_url_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir) / "wiki"
             init_bundle(root, title="Wiki")
 
-            result = ingest_source(root, "https://example.com/docs/test", title="Remote Doc", slug="remote")
+            with self.assertRaisesRegex(ValueError, "URL sources are not supported"):
+                ingest_source(root, "https://example.com/docs/test", title="Remote Doc", slug="remote")
 
-            text = (root / result.source_path).read_text()
-            self.assertIn("resource: https://example.com/docs/test", text)
-            self.assertIn("Content was not fetched automatically", text)
+    def test_ingest_rejects_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "wiki"
+            init_bundle(root, title="Wiki")
+            source_dir = Path(temp_dir) / "sources"
+            source_dir.mkdir()
+
+            with self.assertRaisesRegex(ValueError, "Source must be a local file"):
+                ingest_source(root, str(source_dir))
 
     def test_page_create_writes_wiki_page_with_source(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -84,6 +96,10 @@ class AuthoringTest(unittest.TestCase):
 
             page_text = (root / result.page_path).read_text()
             self.assertIn("type: wiki_page", page_text)
+            self.assertIn("entity_type: topic", page_text)
+            self.assertIn("quality: unreviewed", page_text)
+            self.assertIn("## Human Feedback", page_text)
+            self.assertIn("## Counterexamples and Risks", page_text)
             self.assertIn("/raw/sources/example-source.md", page_text)
             self.assertTrue(lint_bundle(root).ok)
 
