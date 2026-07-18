@@ -1,10 +1,66 @@
+<div align="center">
+
 # ExpertWiki
 
-ExpertWiki is a local-first expert encyclopedia and professional knowledge
-bundle system for AI agents.
+**A local-first expert encyclopedia and source-backed knowledge network for AI agents.**
 
-It turns human-confirmed source material into structured, citable Markdown
-knowledge cards so agents can answer with clearer provenance:
+ExpertWiki turns human-confirmed source material into structured Markdown
+knowledge cards that agents can cite, audit, query, and package.
+
+[Quick Start](#quick-start) · [Codex Skill](#codex-skill) · [CLI](#cli) · [Local API](#local-api) · [Architecture](docs/architecture.md) · [MVP](docs/mvp.md)
+
+[![Python >=3.9](https://img.shields.io/badge/python-%3E%3D3.9-3776AB?logo=python&logoColor=white)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.1.0-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Codex Skill](https://img.shields.io/badge/codex-skill-111827)](skills/expertwiki/SKILL.md)
+
+<img src="docs/assets/expertwiki-banner.svg" alt="ExpertWiki source-backed expert knowledge flow" width="100%" />
+
+```text
+Ask Codex:
+Install PnakotusLabs/ExpertWiki from GitHub and turn this folder's admitted knowledge into ExpertWiki cards.
+```
+
+</div>
+
+## Preview
+
+ExpertWiki is not a generic note inbox. It is a source-preserving knowledge
+bundle for the questions agents need to answer before they trust an expert
+claim:
+
+```text
+human-confirmed files
+  -> admission gate
+  -> raw/sources/
+  -> wiki/{experts,projects,viewpoints,topics,comparisons,synthesis}
+  -> query, audit, graph, llms.txt, local API, Codex Skill
+```
+
+<table>
+  <tr>
+    <td width="33%">
+      <strong>Preserve evidence</strong><br />
+      <sub>Accepted local files are copied into <code>raw/sources/</code> before synthesis.</sub>
+    </td>
+    <td width="33%">
+      <strong>Write agent-readable cards</strong><br />
+      <sub>Cards separate facts, human feedback, rules, risks, confidence, and sources.</sub>
+    </td>
+    <td width="33%">
+      <strong>Expose retrieval surfaces</strong><br />
+      <sub>Query Markdown cards locally, serve JSON, graph data, Markdown pages, and <code>llms.txt</code>.</sub>
+    </td>
+  </tr>
+</table>
+
+## Why ExpertWiki
+
+Agent developers and AI application teams need stable professional knowledge
+that is easier to inspect than a vector-store blob and more structured than a
+folder of notes.
+
+ExpertWiki focuses on provenance:
 
 - who said what
 - what evidence supports it
@@ -12,88 +68,51 @@ knowledge cards so agents can answer with clearer provenance:
 - which credentials, conflicts, and context matter
 - whether a claim is verified, stale, disputed, or based on a single case
 
-The first vertical is global open-source AI, agent infrastructure, and developer
+The first wedge is global open-source AI, agent infrastructure, and developer
 tooling. The same file contract can later support legal, medical, financial,
 enterprise, and other expert domains.
 
-## Why It Exists
+## Typical Use Cases
 
-Agent developers and AI application teams need stable professional knowledge
-that is easier to inspect than a vector-store blob and more structured than a
-folder of notes.
+- **Agent knowledge packs**: create local source-backed context bundles for
+  coding agents, business agents, and workflow apps.
+- **Expert and project directories**: model experts, projects, viewpoints,
+  topics, comparisons, and synthesis pages in one Markdown bundle.
+- **Human feedback mining**: extract decisions, review feedback, failures,
+  real outcomes, and rules from local files.
+- **Auditable local retrieval**: query only synthesized `wiki/` cards while
+  keeping raw evidence available under `raw/sources/`.
+- **Future ExpertContext API substrate**: prepare versioned context packages
+  for MCP, hosted delivery, licensing, metering, and payout layers.
 
-ExpertWiki keeps the source trail local and explicit:
+## Quick Start
 
-```text
-local files and expert/project source material
-  -> preserved raw source records
-  -> expert, project, topic, viewpoint, comparison, and synthesis cards
-  -> local search, JSON graph, llms.txt, audit reports, and package checks
-  -> coding agents, business agents, workflow apps, and future hosted APIs
-```
+### Requirements
 
-The local CLI is the authoring substrate. MCP servers, hosted Context7-like
-delivery, ExpertContext APIs, licensing, metering, payout, and expert claiming
-are future distribution and business layers.
+- Python `>=3.9`
+- `pytest` for development tests
 
-## What You Can Do Today
-
-- Initialize an ExpertWiki bundle, defaulting to `~/.expertwiki`.
-- Preserve local source files under `raw/sources/`.
-- Create source-backed Markdown cards under `wiki/`.
-- Model experts, projects, viewpoints, topics, comparisons, and synthesis pages.
-- Query only the synthesized `wiki/` layer.
-- Rebuild indexes and maintain `log.md`.
-- Lint structure, frontmatter, source references, and Markdown links.
-- Write audit reports and run package preflight checks.
-- Serve a local reader API with search, page lookup, Markdown export, graph
-  export, and `llms.txt`.
-- Install a Codex Skill that knows the ExpertWiki admission gate and authoring
-  workflow.
-
-## Current Boundaries
-
-- `ingest` accepts local files only.
-- URLs are not fetched or ingested by the CLI.
-- Directories are not bulk-ingested.
-- The Codex Skill processes candidate files one at a time and applies an
-  admission gate before preserving sources or writing cards.
-- Unconfirmed AI summaries, chat filler, unsupported assertions, templates,
-  automatic logs, and context-free prompt tricks are not treated as knowledge.
-- Query searches generated `wiki/` pages, not raw sources.
-- The project does not yet provide remote access control, expert page claiming,
-  hosted MCP, billing, payout, or enterprise permissioning.
-
-## Installation
-
-ExpertWiki is a zero-runtime-dependency Python package.
-
-Requirements:
-
-- Python 3.9+
-- `pytest` for running the test suite
-
-Install from a checkout:
+### Install
 
 ```bash
 python3 -m pip install -e .
 ```
 
-If your shell cannot find the installed command, run from source:
+If the `expertwiki` command is not on your `PATH`, run from source:
 
 ```bash
 PYTHONPATH=src python3 -m expertwiki.cli --help
 ```
 
-## Quick Start
+### Create a bundle
 
-Create the default user-level bundle:
+By default, ExpertWiki creates the user-level bundle at `~/.expertwiki`:
 
 ```bash
 expertwiki init --title "Open Source AI Experts"
 ```
 
-That creates:
+The bundle layout is:
 
 ```text
 ~/.expertwiki/
@@ -113,8 +132,15 @@ That creates:
   audits/
 ```
 
-Add a local source file. Replace `<local-file>` with a real file on disk; the
-CLI does not fetch URLs.
+Use an explicit path when you want a project-local or team-local bundle:
+
+```bash
+expertwiki init ./my-expertwiki --title "Internal Engineering Experts"
+```
+
+### Add a source
+
+Replace `<local-file>` with a real file on disk. The CLI does not fetch URLs.
 
 ```bash
 expertwiki ingest ~/.expertwiki <local-file> \
@@ -122,7 +148,7 @@ expertwiki ingest ~/.expertwiki <local-file> \
   --slug karpathy
 ```
 
-Create a knowledge card from an admitted source:
+### Create a card
 
 ```bash
 expertwiki page create ~/.expertwiki wiki/entities/experts/andrej-karpathy.md \
@@ -131,7 +157,7 @@ expertwiki page create ~/.expertwiki wiki/entities/experts/andrej-karpathy.md \
   --source karpathy
 ```
 
-Validate and query:
+### Validate and query
 
 ```bash
 expertwiki lint ~/.expertwiki
@@ -140,13 +166,81 @@ expertwiki package ~/.expertwiki --dry-run
 expertwiki query ~/.expertwiki "agent knowledge bundles"
 ```
 
-Create a bundle somewhere else by passing an explicit path:
+## What It Can Manage
 
-```bash
-expertwiki init ./my-expertwiki --title "Internal Engineering Experts"
+ExpertWiki uses Markdown as the source of truth.
+
+Each bundle has:
+
+- preserved raw source records
+- expert pages
+- project pages
+- viewpoint pages
+- topic pages
+- comparison pages
+- synthesis pages
+- generated indexes
+- update logs
+- local audit reports
+
+The current CLI is the authoring substrate. Hosted retrieval, MCP service
+deployment, expert claiming, licensing, usage metering, payout, and enterprise
+distribution are future layers.
+
+## Admission Gate
+
+ExpertWiki should extract:
+
+- human judgments, approvals, rejections, questions, and requested changes
+- expert feedback from code review, design review, requirements review,
+  incident review, testing, or launch feedback
+- human edits to AI output, especially what changed and why
+- real outcomes such as tests passing, production failures, accepted decisions,
+  or rejected approaches
+- decision rationale around security, performance, cost, compliance, UX,
+  maintainability, or business goals
+- failures, counterexamples, and contexts where advice does not apply
+
+ExpertWiki should ignore:
+
+- unconfirmed AI summaries
+- context-free prompt tricks
+- chat filler or pure emotion
+- unsupported personal assertions
+- duplicate templates and automatic logs
+- conclusions whose source cannot be identified as human or AI
+- success stories without basis, context, or outcome
+
+## Codex Skill
+
+This repository ships a Codex-compatible skill:
+
+```text
+skills/expertwiki/
+  SKILL.md
+  references/admission-gate.md
 ```
 
-## CLI Reference
+The packaged skill is:
+
+```text
+dist/expertwiki.skill
+```
+
+The skill teaches Codex to:
+
+- use `~/.expertwiki` as the default bundle
+- inspect source folders one file at a time
+- apply the admission gate before ingestion
+- reject URLs, directories, AI-only summaries, and unsupported claims
+- preserve accepted local files under `raw/sources/`
+- create evidence-backed cards under `wiki/`
+- query only the synthesized `wiki/` layer
+
+Install the skill into Codex by unpacking `dist/expertwiki.skill` into
+`$CODEX_HOME/skills` or by using your Codex skill installer.
+
+## CLI
 
 ```bash
 expertwiki init [bundle] --title "<title>"
@@ -187,7 +281,7 @@ last_reviewed_at: unknown
 sources: [/raw/sources/example-source.md]
 ```
 
-Recommended sections for agent-readable cards:
+Recommended sections:
 
 - `Context`
 - `Facts`
@@ -214,36 +308,7 @@ Use `confidence` in the body for evidentiary strength:
 - `stale`
 - `disputed`
 
-## Codex Skill
-
-The repository ships a Codex-compatible skill:
-
-```text
-skills/expertwiki/
-  SKILL.md
-  references/admission-gate.md
-```
-
-The packaged skill is:
-
-```text
-dist/expertwiki.skill
-```
-
-The skill teaches Codex to:
-
-- use `~/.expertwiki` as the default bundle
-- inspect source folders one file at a time
-- apply the admission gate before ingestion
-- reject URLs, directories, AI-only summaries, and unsupported claims
-- preserve accepted local files under `raw/sources/`
-- create evidence-backed cards under `wiki/`
-- query only the synthesized `wiki/` layer
-
-Install the skill into Codex by unpacking `dist/expertwiki.skill` into
-`$CODEX_HOME/skills` or by using your Codex skill installer.
-
-## Local Reader API
+## Local API
 
 Run the local HTTP reader against the example bundle:
 
@@ -299,6 +364,19 @@ PYTHONPATH=src python3 -m expertwiki.cli list bundles/expertwiki-ai-agent-engine
 PYTHONPATH=src python3 -m expertwiki.cli query bundles/expertwiki-ai-agent-engineering "MCP"
 ```
 
+## Documentation
+
+- [Architecture](docs/architecture.md) - bundle model, source records, page
+  types, and local API
+- [CLI Contract](docs/cli-contract.md) - command behavior, exit codes, and JSON
+  usage
+- [Codex Workflows](docs/codex-workflows.md) - agent operating workflows
+- [MVP](docs/mvp.md) - product scope and launch sequence
+- [Long-Term Principles](docs/long-term-principles.md) - durable design
+  constraints
+- [Wiki Page Quality Policy](docs/wiki-page-quality-policy.md) - quality and
+  review standards
+
 ## Repository Layout
 
 ```text
@@ -316,34 +394,23 @@ THIRD_PARTY_NOTICES.md            Third-party notices
 
 ## Development
 
-Run tests:
-
 ```bash
 python3 -m pytest
-```
-
-Run bundle validation:
-
-```bash
 PYTHONPATH=src python3 -m expertwiki.cli lint bundles/expertwiki-ai-agent-engineering
-PYTHONPATH=src python3 -m expertwiki.cli audit bundles/expertwiki-ai-agent-engineering --json
 PYTHONPATH=src python3 -m expertwiki.cli package bundles/expertwiki-ai-agent-engineering --dry-run
-```
-
-Validate the bundled skill:
-
-```bash
 python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" skills/expertwiki
 ```
 
-## Status
+## Status And Safety
 
 ExpertWiki is early local infrastructure. The file contract, CLI, local search,
 linting, audit reports, graph export, `llms.txt`, and Codex Skill workflow are
-implemented. Hosted retrieval, MCP service deployment, expert claiming,
-licensing, usage metering, payout, and enterprise distribution are not yet part
-of this repository.
+implemented.
+
+Use it locally first. Do not treat unreviewed cards as verified professional
+advice. For regulated domains, keep source review, permissions, licensing,
+freshness, and expert conflicts explicit.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT
