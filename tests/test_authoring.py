@@ -129,6 +129,18 @@ class AuthoringTest(unittest.TestCase):
             self.assertIn("Example", (root / "wiki" / "topics" / "index.md").read_text())
             self.assertIn("index | Rebuilt", (root / "log.md").read_text())
 
+    def test_rebuild_indexes_skips_hidden_compiler_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = _wiki_with_page(Path(temp_dir))
+            drafts = root / ".expertwiki" / "drafts"
+            drafts.mkdir(parents=True)
+            (drafts / "candidate.md").write_text("draft", encoding="utf-8")
+
+            result = rebuild_indexes(root)
+
+            self.assertFalse((drafts / "index.md").exists())
+            self.assertNotIn(".expertwiki/drafts/index.md", result.updated_indexes)
+
     def test_query_bundle_returns_wiki_page(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = _wiki_with_page(Path(temp_dir))

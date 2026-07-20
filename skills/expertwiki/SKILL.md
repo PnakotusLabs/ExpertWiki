@@ -1,13 +1,20 @@
 ---
 name: expertwiki
-description: Build and query local ExpertWiki knowledge bundles from human-authored files. Use when the user asks to turn notes, reviews, diffs, incident reports, test results, project documentation, or other local material into source-backed expert/project/topic knowledge cards, or asks to search an existing ExpertWiki bundle. Process one file at a time, apply the admission gate, preserve accepted local sources, and never ingest URLs or treat unconfirmed AI output as knowledge.
+description: Build and query local ExpertWiki knowledge bundles from human-authored files. Use when the user asks to turn notes, reviews, diffs, incident reports, test results, project documentation, or other local material into a source-backed, interlinked AI second brain, or asks to search an existing ExpertWiki bundle. The invoking host AI performs extraction and synthesis itself through the ExpertWiki job protocol; no separate model API is required.
 ---
 
 # ExpertWiki
 
-Use the ExpertWiki CLI as a local authoring and query tool. The bundle is the
-source of truth. The model may use its own tokens to interpret and write cards,
-but the CLI itself does not call a model or fetch remote content.
+Use ExpertWiki as a deterministic local compiler controlled by the AI currently
+running this skill. The CLI owns source preservation, SQLite state, incremental
+dependencies, validation, drafts, citations, review, and publishing. You are the
+model: read each claimed job's local inputs, produce its strict JSON result, and
+submit that result back to the CLI. Do not wait for the CLI to call an LLM and do
+not ask the user to run the host-AI job loop for you.
+
+The normal backend is `host`. A configured OpenAI-compatible API is an optional
+unattended backend and may be used only when the user explicitly asks for
+`--backend api`.
 
 ## CLI Resolution
 
@@ -17,120 +24,171 @@ Prefer the installed command:
 expertwiki status <bundle> --json
 ```
 
-When working from this repository without an installed command, run:
+When working from the ExpertWiki repository without an installed command, use:
 
 ```bash
 PYTHONPATH=src python3 -m expertwiki.cli <command> ...
 ```
 
-Use only local files with `ingest`. URL sources are intentionally unsupported.
-Do not add a URL ingestion workaround or fetch remote content.
+Use only local files. Never fetch, ingest, or resolve a URL through ExpertWiki.
 
-## Workflow Decision
+## Create Or Update Knowledge
 
-### Create or update knowledge
+First identify the bundle. Verify an existing bundle with `status --json`. If no
+bundle was requested, use `~/.expertwiki`; initialize it only when it does not
+exist and never initialize a non-empty unrelated directory.
 
-1. Identify the bundle. If the target is already an ExpertWiki bundle, verify
-   it with `expertwiki status <bundle> --json`. Otherwise initialize or reuse
-   the user's default bundle at `~/.expertwiki`, not a repo-local `./expertwiki`
-   tied to the current working directory:
+Process candidate files one at a time. Apply the admission gate in
+[references/admission-gate.md](references/admission-gate.md) before ingestion.
+Admit identifiable human judgments, decisions and rationale, feedback, edits
+with reasons, observed outcomes, failures, counterexamples, or useful factual
+context. Reject AI-only material, unknown-origin assertions, generated output,
+caches, duplicates, and unsupported claims. Preserve each admitted file with:
 
-   ```bash
-   expertwiki init ~/.expertwiki --title "<title>"
-   ```
+```bash
+expertwiki add <bundle> <local-file> --publisher "<publisher>" --slug <slug>
+```
 
-   If `~/.expertwiki` already exists, run `expertwiki status ~/.expertwiki --json`
-   and update it instead of reinitializing it. Never initialize a non-empty
-   directory and never overwrite the user's input folder. Bundle output lives
-   under `<bundle>/wiki/`; raw accepted sources live under
-   `<bundle>/raw/sources/`.
+`add` preserves the source and queues the first host-AI job. After all admitted
+files are added, run the following loop yourself until `job` is `null`:
 
-2. Enumerate candidate files and process them one at a time. Do not bulk-ingest
-   a directory. Skip binary files, generated build output, caches, and obvious
-   duplicates. Preserve the relative input path in the source notes or page
-   metadata when it helps provenance.
+```bash
+expertwiki jobs next <bundle> --json
+```
 
-3. Apply the admission gate in [references/admission-gate.md](references/admission-gate.md)
-   before creating a source record or page. A file must contain at least one
-   admissible human-confirmed judgment, feedback item, human edit with reason,
-   observed result, decision rationale, failure/counterexample, or usable
-   context. For mixed files, gate each relevant passage or event separately;
-   do not promote the whole file because one paragraph qualifies. If origin is
-   unknown or the material is AI-only, reject it and report the path and reason.
-   Do not convert rejected material merely because it is long, polished, or
-   technically interesting.
+The returned object contains a persistent job ID and a dynamic `payload`. Never
+invent a job, edit SQLite directly, or reuse output from another job.
 
-4. For an admitted local file, preserve it first:
+### Analyze Source Job
 
-   ```bash
-   expertwiki ingest <bundle> <local-file> --publisher "<publisher>" --slug <slug>
-   ```
+For `kind: analyze_source`, read `payload.source.path` under the bundle in full.
+Use one-based physical line numbers, including frontmatter lines; frontmatter is
+metadata and is not evidence. Inspect `payload.existing_concepts` before naming
+concepts. Follow `payload.instructions` and return exactly the object described
+by `payload.output_schema`:
 
-5. Create or update the smallest useful set of cards. Use the CLI to scaffold a
-   card, then write the evidence-backed content into the Markdown file:
+```json
+{
+  "summary": "2-3 source-grounded sentences",
+  "quality": "high",
+  "language": "en",
+  "suggested_topics": ["topic"],
+  "named_references": ["exact source name"],
+  "concepts": [
+    {
+      "name": "Canonical Concept",
+      "aliases": ["surface form present in this source"],
+      "summary": "durable concept summary",
+      "tags": ["tag"],
+      "confidence": 0.8,
+      "provenance_state": "extracted",
+      "source_ranges": ["12-18"],
+      "contradicted_by": []
+    }
+  ]
+}
+```
 
-   ```bash
-   expertwiki page create <bundle> wiki/<type>/<slug>.md \
-     --title "<title>" --entity-type <expert|project|viewpoint|topic|comparison|synthesis> \
-     --source <source-slug>
-   ```
+Extract three to eight durable concepts when the source supports them. Reuse a
+canonical concept only when the name or alias clearly matches. Every range must
+exist in the current source. Do not include Markdown fences or commentary in the
+result file.
 
-   Do not create a card for every file. Merge closely related evidence only
-   when the page can retain clear source links and context.
+### Compile Concept Job
 
-6. Write each admitted card with these sections, adapting the page type as
-   needed:
+For `kind: compile_concept`, read every local file in `payload.sources`, not only
+the changed source. This all-contributor aggregation is mandatory for the
+concept-to-sources dependency contract. Use `source_ranges` as relevance hints,
+inspect surrounding context, read `existing_page.path` when present, honor every
+`rejection_feedback` item, and link only canonical titles listed in
+`related_pages`.
 
-   - `Context`: project, stack, task, role, constraints, and time/version.
-   - `Facts`: what happened and the evidence for it.
-   - `Human Feedback`: what a person accepted, rejected, questioned, or changed.
-   - `Experience Rules`: what worked or failed and under which conditions.
-   - `Counterexamples and Risks`: when not to apply the rule.
-   - `Confidence`: `single_case`, `multiple_confirmed`, `verified`, `stale`, or
-     `disputed`, with a short justification.
-   - `Sources`: links to the preserved raw source records.
+Return exactly the object described by `payload.output_schema`:
 
-   Keep `quality` as the lifecycle state (`unreviewed`, `reviewed`, `verified`,
-   `stale`, `disputed`, or `rejected`) and use `confidence` for evidentiary
-   strength. Never upgrade quality or confidence without evidence.
+```json
+{
+  "title": "Canonical Concept",
+  "description": "concise source-grounded description",
+  "tags": ["tag"],
+  "entity_type": "topic",
+  "body": "# Canonical Concept\n\n## Context\n\n..."
+}
+```
 
-7. Rebuild indexes and validate after writes:
+The body must begin with an H1 and should use Context, Facts, Human Feedback,
+Experience Rules, Counterexamples and Risks, Confidence, Sources, and Related
+Pages when supported. Append citations to factual prose in the exact form
+`^[raw/sources/file.md:START-END]`. Multiple source references may share one
+marker, separated by commas. Do not emit YAML frontmatter; the CLI owns it. Do
+not describe evidence as human-confirmed unless a source explicitly says so.
 
-   ```bash
-   expertwiki index <bundle>
-   expertwiki lint <bundle>
-   expertwiki audit <bundle>
-   expertwiki package <bundle> --dry-run
-   ```
+### Submit Or Fail
 
-   Report admitted files, rejected files with reasons, pages created or
-   updated, source links, confidence states, and validation results.
+Write only the JSON object to a temporary result file, then submit it with the
+actual host name, such as `codex`, `claude-code`, or `cursor`:
 
-### Query knowledge
+```bash
+expertwiki jobs submit <bundle> <job-id> \
+  --result <result.json> --generator <host-name> --json
+```
 
-1. Confirm the bundle and query only the synthesized `wiki` layer:
+The CLI rechecks input hashes, parses the schema, validates source ranges and
+citations, updates dependencies, and writes only a review draft. If validation
+fails, correct the JSON and submit the same active job again. If the host cannot
+complete the job, record the real reason instead of fabricating output:
 
-   ```bash
-   expertwiki query <bundle> "<question or topic>" --json
-   ```
+```bash
+expertwiki jobs fail <bundle> <job-id> --error "<reason>"
+```
 
-2. Inspect relevant pages with `expertwiki show` when the result needs detail.
-   Return the answer with page paths, source paths, facts, human feedback,
-   confidence, and known risks. Do not silently search `raw/sources` or invent
-   a conclusion when no page supports the answer.
+Retry a repaired failure explicitly with `expertwiki jobs retry <bundle>
+<job-id>`. Continue `jobs next` after every successful submission. Analysis jobs
+are exhausted before compile jobs are created, so newly extracted concepts and
+the reverse dependency graph always exist before synthesis.
 
-3. If no result is found, say that the current ExpertWiki knowledge layer has
-   no matching evidence. Do not promote an unreviewed raw source into an answer
-   without passing the admission gate and writing a card first.
+When the queue is empty, inspect candidates with `expertwiki review <bundle>`.
+Show the user the smallest useful review set and explain sources, confidence,
+and known risks. Never run `approve` unless the human explicitly confirms that
+candidate. Approval is the only operation that promotes a generated draft into
+`wiki/`:
+
+```bash
+expertwiki approve <bundle> <card>
+expertwiki reject <bundle> <card> --feedback "<human feedback>"
+```
+
+After approved writes, rebuild and validate:
+
+```bash
+expertwiki index <bundle>
+expertwiki lint <bundle>
+expertwiki audit <bundle>
+expertwiki package <bundle> --dry-run
+```
+
+Report admitted and rejected inputs, completed and failed jobs, draft or page
+paths, source links, confidence states, and validation results.
+
+## Query Knowledge
+
+Query only approved wiki pages:
+
+```bash
+expertwiki query <bundle> "<question or topic>" --json
+```
+
+Read the relevant returned pages and answer with the capabilities of the host AI
+running this skill. Cite page and source paths, distinguish facts from inference,
+and state confidence and risks. Do not silently search `raw/sources` to answer a
+question. If no approved page supports the answer, say the current wiki layer
+has no matching evidence. `expertwiki ask --backend api` is optional and must
+not be selected merely because API environment variables happen to exist.
 
 ## Non-Negotiable Boundaries
 
-- Do not fetch, ingest, or resolve URLs through the CLI.
-- Do not treat an AI-generated summary as knowledge without identifiable human
-  confirmation, a human edit, or an observed result.
-- Do not extract context-free prompt tricks, chat filler, emotions, templates,
-  duplicate content, automatic logs, unsupported assertions, or success-only
-  stories without their basis and outcome.
-- Do not claim that a page is verified when it is based on one unconfirmed case.
-- Do not delete raw accepted sources when revising a card.
-- Do not answer from a card whose evidence is stale or disputed without saying so.
+- Preserve accepted source material under `raw/sources/`; never delete it while revising a card.
+- Keep generated output in `.expertwiki/drafts/` until explicit human approval.
+- Never write generated Markdown directly into `wiki/` to bypass the job and review contracts.
+- Never approve, raise quality, or raise confidence without human or observed evidence.
+- Never overwrite an imported or manually edited published page unless the user explicitly authorizes it.
+- Never answer from stale or disputed evidence without saying so.

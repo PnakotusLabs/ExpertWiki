@@ -8,5 +8,13 @@ dependencies = []
 [project.scripts]
 expertwiki = "expertwiki.cli:main"
 
+[tool.setuptools.package-data]
+expertwiki = [
+  "viewer_assets/*.html",
+  "viewer_assets/*.css",
+  "viewer_assets/*.js",
+  "viewer_assets/vendor/*.js",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ExpertWiki Viewer</title>
+    <link rel="stylesheet" href="/assets/viewer.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">E</div>
+          <div>
+            <strong id="bundle-title">ExpertWiki</strong>
+            <span id="bundle-root" class="bundle-root">Loading bundle...</span>
+          </div>
+        </div>
+        <nav class="primary-tabs" aria-label="Primary view">
+          <button class="tab-button active" data-view="library" type="button">Library</button>
+          <button class="tab-button" data-view="graph" type="button">Graph</button>
+        </nav>
+        <dl class="summary-strip" aria-label="Bundle summary">
+          <div><dt>Sources</dt><dd id="source-count">0</dd></div>
+          <div><dt>Drafts</dt><dd id="draft-count">0</dd></div>
+          <div><dt>Approved</dt><dd id="approved-count">0</dd></div>
+          <div><dt>Rejected</dt><dd id="rejected-count">0</dd></div>
+          <div><dt>Published</dt><dd id="published-count">0</dd></div>
+        </dl>
+      </header>
+
+      <main id="library-view" class="workspace library-workspace">
+        <aside class="document-sidebar" aria-label="Document browser">
+          <div class="sidebar-controls">
+            <label class="search-field">
+              <span class="visually-hidden">Search documents</span>
+              <input id="document-search" type="search" placeholder="Search title, description, tags" autocomplete="off">
+            </label>
+            <div class="segmented-control" role="group" aria-label="Document status">
+              <button class="segment active" data-kind="draft" type="button">Drafts <span id="draft-tab-count">0</span></button>
+              <button class="segment" data-kind="approved" type="button">Approved <span id="approved-tab-count">0</span></button>
+              <button class="segment" data-kind="rejected" type="button">Rejected <span id="rejected-tab-count">0</span></button>
+              <button class="segment" data-kind="published" type="button">Published <span id="published-tab-count">0</span></button>
+            </div>
+          </div>
+          <div class="list-status"><span id="result-count">0 documents</span></div>
+          <div id="document-list" class="document-list" role="listbox" aria-label="Documents"></div>
+        </aside>
+
+        <article class="reader-panel" aria-live="polite">
+          <div id="reader-empty" class="empty-state">
+            <strong>Select a document</strong>
+            <p>Choose a draft to inspect its generated knowledge and source evidence.</p>
+          </div>
+          <div id="reader-content" class="reader-content hidden">
+            <header class="document-header">
+              <div class="document-meta-row">
+                <span id="document-status" class="status-label"></span>
+                <span id="document-type" class="entity-label"></span>
+              </div>
+              <h1 id="document-title"></h1>
+              <p id="document-description" class="document-description"></p>
+              <div id="document-tags" class="tag-list"></div>
+            </header>
+            <div id="markdown-body" class="markdown-body"></div>
+          </div>
+        </article>
+
+        <aside class="evidence-panel" aria-label="Source evidence">
+          <div class="panel-heading">
+            <div>
+              <span class="panel-eyebrow">Evidence</span>
+              <strong id="evidence-title">Source lines</strong>
+            </div>
+            <span id="evidence-range" class="range-label"></span>
+          </div>
+          <div id="evidence-empty" class="evidence-empty">
+            Select a citation in the article to inspect its exact source lines.
+          </div>
+          <div id="evidence-content" class="evidence-content hidden">
+            <p id="evidence-path" class="evidence-path"></p>
+            <ol id="source-lines" class="source-lines"></ol>
+          </div>
+        </aside>
+      </main>
+
+      <main id="graph-view" class="workspace graph-workspace hidden">
+        <aside class="graph-sidebar">
+          <div class="sidebar-controls">
+            <label class="search-field">
+              <span class="visually-hidden">Search graph</span>
+              <input id="graph-search" type="search" placeholder="Find concept or source" autocomplete="off">
+            </label>
+          </div>
+          <div class="graph-stats">
+            <div><span>Concepts</span><strong id="graph-concept-count">0</strong></div>
+            <div><span>Sources</span><strong id="graph-source-count">0</strong></div>
+            <div><span>Edges</span><strong id="graph-edge-count">0</strong></div>
+          </div>
+          <div class="legend" aria-label="Graph legend">
+            <div><span class="legend-swatch concept-swatch"></span>Concept</div>
+            <div><span class="legend-swatch source-swatch"></span>Source</div>
+            <div><span class="legend-line"></span>Supports</div>
+          </div>
+          <button id="fit-graph" class="secondary-button" type="button">Fit graph</button>
+          <div id="graph-selection" class="graph-selection">
+            <span class="panel-eyebrow">Selection</span>
+            <strong>Explore the graph</strong>
+            <p>Select a concept or source to isolate its evidence neighborhood.</p>
+          </div>
+        </aside>
+        <section class="graph-canvas-panel" aria-label="Knowledge graph">
+          <div id="graph-canvas"></div>
+          <div id="graph-loading" class="graph-loading">Loading knowledge graph...</div>
+        </section>
+      </main>
+    </div>
+    <script src="/assets/vendor/cytoscape.min.js"></script>
+    <script src="/assets/viewer.js"></script>
+  </body>
+</html>

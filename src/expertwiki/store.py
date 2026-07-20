@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import posixpath
 import re
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from .okf import load_okf_concepts
 
 
 TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
+MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 class KnowledgeStore:
@@ -39,6 +41,10 @@ class KnowledgeStore:
     def graph(self) -> dict[str, Any]:
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, str]] = []
+        seen_edges: set[tuple[str, str, str]] = set()
+        page_by_path = {
+            page.path.removeprefix("/"): page.id for page in self.pages.values()
+        }
         for page in self.pages.values():
             nodes.append(
                 {
@@ -50,7 +56,9 @@ class KnowledgeStore:
                 }
             )
             for source_id in page.sources:
-                edges.append({"from": page.id, "to": source_id, "type": "cites"})
+                _append_edge(edges, seen_edges, page.id, source_id, "cites")
+            for target_id in _page_link_targets(page, page_by_path):
+                _append_edge(edges, seen_edges, page.id, target_id, "links_to")
         for source in self.sources.values():
             nodes.append({"id": source.id, "type": "source", "title": source.title})
         return {"nodes": nodes, "edges": edges}
@@ -152,6 +160,37 @@ def _score_page(query: str, query_tokens: set[str], page: WikiPage) -> int:
         score += 3
 
     return score
+
+
+def _page_link_targets(page: WikiPage, page_by_path: dict[str, str]) -> list[str]:
+    current = Path(page.path.removeprefix("/"))
+    targets: list[str] = []
+    for raw_target in MARKDOWN_LINK_PATTERN.findall(page.body):
+        target = raw_target.strip("<>").split("#", 1)[0]
+        if not target or "://" in target or target.startswith("mailto:"):
+            continue
+        if target.startswith("/"):
+            normalized = target.removeprefix("/")
+        else:
+            normalized = posixpath.normpath((current.parent / target).as_posix())
+        target_id = page_by_path.get(normalized)
+        if target_id and target_id != page.id:
+            targets.append(target_id)
+    return targets
+
+
+def _append_edge(
+    edges: list[dict[str, str]],
+    seen: set[tuple[str, str, str]],
+    source: str,
+    target: str,
+    edge_type: str,
+) -> None:
+    key = (source, target, edge_type)
+    if key in seen:
+        return
+    seen.add(key)
+    edges.append({"from": source, "to": target, "type": edge_type})
 
 
 def _bundle_title(root: Path) -> str:

@@ -256,7 +256,7 @@ def rebuild_indexes(bundle_dir: str | Path) -> IndexResult:
     updated: list[Path] = []
     directories = [root, *sorted(path for path in root.rglob("*") if path.is_dir())]
     for directory in directories:
-        if _should_index(directory):
+        if _should_index(root, directory):
             updated.append(_write(directory / "index.md", _render_index(root, directory)))
 
     append_log(root, "index", f"Rebuilt {len(updated)} index file(s)")
@@ -357,9 +357,9 @@ def _agents_file(title: str) -> str:
 This directory is a local ExpertWiki knowledge bundle.
 
 ExpertWiki provides the file contract, CLI operations, validation, and packaging
-checks. It does not provide a hosted model or automatic synthesis by itself.
-The user runs a local agent such as Codex or Claude Code to synthesize wiki
-content from preserved raw sources.
+checks. It can use a configured OpenAI-compatible provider to extract concepts
+and compile review drafts. AI output remains outside `wiki/` until a human
+approves it.
 
 ## Product Boundary
 
@@ -375,8 +375,8 @@ content from preserved raw sources.
 
 1. Read index.md and log.md before editing.
 2. Preserve source material under raw/sources/.
-3. Write synthesized expert, project, topic, comparison, and synthesis pages
-   under wiki/.
+3. Review generated cards under `.expertwiki/drafts/`; publish only
+   human-approved cards under `wiki/`.
 4. Use Markdown links between related pages.
 5. Cite raw sources from each wiki page when source material exists.
 6. Run lint after write operations.
@@ -390,11 +390,13 @@ Run these commands from this bundle directory:
 expertwiki status . --json
 expertwiki list . sources
 expertwiki list . pages
+expertwiki review .
 ```
 
-When source material exists, inspect the relevant files under `raw/sources/`.
-Then create or update a small set of high-value wiki pages. Prefer fewer,
-better pages over many shallow pages.
+Add admitted local material with `expertwiki add . <local-file>`. With a model
+provider configured, this analyzes changed sources and compiles a small set of
+high-value review drafts. Use `expertwiki analyze .` and `expertwiki compile .`
+when explicit pipeline control is useful. Never auto-approve model output.
 
 After edits:
 
@@ -584,8 +586,8 @@ Status: {"OK" if ok else "Needs attention"}
 """
 
 
-def _should_index(directory: Path) -> bool:
-    if directory.name.startswith("."):
+def _should_index(root: Path, directory: Path) -> bool:
+    if any(part.startswith(".") for part in directory.relative_to(root).parts):
         return False
     has_markdown = any(path.suffix == ".md" for path in directory.iterdir() if path.is_file())
     has_child_directory = any(path.is_dir() and not path.name.startswith(".") for path in directory.iterdir())

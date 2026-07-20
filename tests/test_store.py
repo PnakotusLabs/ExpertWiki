@@ -32,6 +32,7 @@ class KnowledgeStoreTest(unittest.TestCase):
     def test_graph_contains_page_source_edges(self) -> None:
         graph = self.store.graph()
         self.assertTrue(any(edge["type"] == "cites" for edge in graph["edges"]))
+        self.assertTrue(any(edge["type"] == "links_to" for edge in graph["edges"]))
         self.assertTrue(any(node["type"] == "source" for node in graph["nodes"]))
 
     def test_llms_txt_lists_agent_readable_pages(self) -> None:

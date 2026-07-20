@@ -5,6 +5,10 @@
 ```text
 public sources, expert submissions, project data, and adoption signals
   -> source records
+  -> structured concept extraction
+  -> SQLite concept-to-sources dependency graph
+  -> incremental concept compilation
+  -> human review gate
   -> expert, project, topic, viewpoint, comparison, and synthesis pages
   -> markdown links and structured metadata
   -> index.md and log.md
@@ -32,6 +36,11 @@ bundle/
     comparisons/
     synthesis/
   audits/
+  .expertwiki/
+    state.sqlite
+    drafts/
+    rejected/
+    journal/
 ```
 
 Reserved files:
@@ -39,6 +48,44 @@ Reserved files:
 - `AGENTS.md`: operating instructions for agents.
 - `index.md`: directory navigation.
 - `log.md`: chronological change history.
+
+## Incremental Compiler
+
+The compiler treats raw sources as inputs, extracted concepts as an intermediate
+representation, review drafts as build artifacts, and approved Markdown pages
+as published output. `.expertwiki/state.sqlite` is rebuildable compiler state;
+it does not replace the Markdown bundle as the user-owned knowledge store.
+
+By default, SQLite stores `agent_jobs` and the AI host that invoked the
+ExpertWiki skill performs extraction and synthesis. `jobs next` claims a job
+with immutable input hashes and local paths; `jobs submit` validates structured
+JSON, rechecks those hashes, and applies the state transition. This makes the
+skill's current model the generator without embedding a Codex- or Claude-specific
+API inside the CLI. An OpenAI-compatible fast/heavy backend remains explicit and
+optional for unattended runs.
+
+Extraction records canonical concepts, aliases, summaries, topics, named
+references, source ranges, confidence, provenance, and contradictions.
+Synthesis compiles one concept at a time from every active contributing
+source. A source hash change dirties both its old and new concepts. Shared
+concepts are always recompiled with all active contributors, including sources
+that did not change in the current run.
+
+Deleting a sole source orphans its concepts. Deleting one contributor to a
+shared concept freezes the previous synthesis so the compiler cannot silently
+erase the deleted source's contribution. Existing drafts and manually edited
+published pages are protected from overwrite unless the user chooses an
+explicit recovery path.
+
+File mutations use a single-writer PID lock, atomic replacement, and a
+pre-state journal. SQLite updates use immediate transactions. Startup recovers
+pending file journals before another mutation runs; lint reports an unrecovered
+journal as critical.
+
+This architecture adapts the local extraction/compile/review loop from
+`obsidian-llm-wiki-local` and the reverse-dependency, frozen-concept, lock,
+journal, and line-citation contracts from `llm-wiki-compiler` to ExpertWiki's
+Python and Markdown bundle model.
 
 ## Raw Source
 

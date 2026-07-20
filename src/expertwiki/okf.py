@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,8 @@ def load_okf_concepts(bundle_dir: str | Path) -> dict[str, OkfConcept]:
     root = Path(bundle_dir)
     concepts: dict[str, OkfConcept] = {}
     for path in sorted(root.rglob("*.md")):
+        if any(part.startswith(".") for part in path.relative_to(root).parts[:-1]):
+            continue
         if path.name in RESERVED_FILENAMES:
             continue
         concept = parse_okf_concept(root, path)
@@ -169,6 +172,12 @@ def _split_inline_list(value: str) -> list[str]:
 
 
 def _strip_quotes(value: str) -> str:
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+    if len(value) >= 2 and value[0] == value[-1] == '"':
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return value[1:-1]
+        return str(parsed)
+    if len(value) >= 2 and value[0] == value[-1] == "'":
         return value[1:-1]
     return value

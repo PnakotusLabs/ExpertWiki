@@ -33,7 +33,9 @@ claim:
 human-confirmed files
   -> admission gate
   -> raw/sources/
-  -> wiki/{experts,projects,viewpoints,topics,comparisons,synthesis}
+  -> fast concept extraction + SQLite dependency graph
+  -> heavy concept compilation + review queue
+  -> approved wiki/{experts,projects,viewpoints,topics,comparisons,synthesis}
   -> query, audit, graph, llms.txt, local API, Codex Skill
 ```
 
@@ -148,6 +150,53 @@ expertwiki ingest ~/.expertwiki <local-file> \
   --slug karpathy
 ```
 
+### Compile with the invoking AI
+
+When ExpertWiki is used as a Codex, Claude Code, Cursor, or similar skill, the
+invoking AI is the default model. The CLI queues structured jobs in SQLite; the
+skill reads each job's local inputs, generates strict JSON with its own model
+capabilities, and submits the result for validation:
+
+```bash
+expertwiki add ~/.expertwiki <local-file> --publisher "Local notes"
+expertwiki jobs next ~/.expertwiki --json
+expertwiki jobs submit ~/.expertwiki <job-id> \
+  --result <result.json> --generator codex --json
+```
+
+The skill repeats `jobs next` and `jobs submit` until the queue is empty, then
+presents `.expertwiki/drafts/` for review. No model API key is required for this
+host-AI path.
+
+An OpenAI-compatible endpoint remains available for explicitly requested,
+unattended compilation. Configure separate fast and heavy models:
+
+```bash
+export EXPERTWIKI_OPENAI_BASE_URL="http://127.0.0.1:11434/v1"
+export EXPERTWIKI_FAST_MODEL="<fast-model>"
+export EXPERTWIKI_HEAVY_MODEL="<heavy-model>"
+export EXPERTWIKI_OPENAI_API_KEY="<key-if-required>"
+```
+
+Select it explicitly with `--backend api`:
+
+```bash
+expertwiki add ~/.expertwiki <local-file> --publisher "Local notes" --backend api
+expertwiki review ~/.expertwiki
+expertwiki approve ~/.expertwiki <draft-slug>
+expertwiki ask ~/.expertwiki "What does the approved wiki say about this?" --backend api
+```
+
+For host-AI queue preparation without `add`:
+
+```bash
+expertwiki analyze ~/.expertwiki
+expertwiki compile ~/.expertwiki
+```
+
+AI output never enters `wiki/` automatically. Compilation writes to
+`.expertwiki/drafts/`; only `approve` publishes a page.
+
 ### Create a card
 
 ```bash
@@ -183,7 +232,7 @@ Each bundle has:
 - update logs
 - local audit reports
 
-The current CLI is the authoring substrate. Hosted retrieval, MCP service
+The CLI includes a local incremental LLM wiki compiler. Hosted retrieval, MCP service
 deployment, expert claiming, licensing, usage metering, payout, and enterprise
 distribution are future layers.
 
@@ -234,7 +283,8 @@ The skill teaches Codex to:
 - apply the admission gate before ingestion
 - reject URLs, directories, AI-only summaries, and unsupported claims
 - preserve accepted local files under `raw/sources/`
-- create evidence-backed cards under `wiki/`
+- process SQLite analysis and compile jobs with Codex itself
+- keep generated cards in review drafts until explicit human approval
 - query only the synthesized `wiki/` layer
 
 Install the skill into Codex by unpacking `dist/expertwiki.skill` into
@@ -246,6 +296,17 @@ Install the skill into Codex by unpacking `dist/expertwiki.skill` into
 expertwiki init [bundle] --title "<title>"
 expertwiki status <bundle> --json
 expertwiki ingest <bundle> <local-file> --publisher "<publisher>" --slug <slug>
+expertwiki analyze <bundle> [--all]
+expertwiki compile <bundle> [--concept <concept>] [--force]
+expertwiki jobs next <bundle> --json
+expertwiki jobs submit <bundle> <job-id> --result <result.json> --generator <host>
+expertwiki jobs fail <bundle> <job-id> --error "<reason>"
+expertwiki jobs retry <bundle> <job-id>
+expertwiki jobs status <bundle> --json
+expertwiki review <bundle>
+expertwiki approve <bundle> <draft>
+expertwiki reject <bundle> <draft> --feedback "<reason>"
+expertwiki ask <bundle> "<question>"
 expertwiki page create <bundle> wiki/<path>/<page>.md --title "<title>" \
   --entity-type <expert|project|viewpoint|topic|comparison|synthesis> \
   --source <source-ref>
@@ -307,6 +368,26 @@ Use `confidence` in the body for evidentiary strength:
 - `verified`
 - `stale`
 - `disputed`
+
+## Local Viewer
+
+Open the read-only local viewer for pending drafts, approved pages, source-line
+evidence, and the compiler knowledge graph:
+
+```bash
+expertwiki view ~/.expertwiki
+```
+
+When running from a source checkout:
+
+```bash
+PYTHONPATH=src python3 -m expertwiki.cli view ~/.expertwiki
+```
+
+The viewer listens on `http://127.0.0.1:8765` by default and opens it in the
+browser. Use `--no-open` to start the server without opening a browser, or
+`--port <port>` when 8765 is already in use. The viewer does not approve,
+reject, edit, or otherwise mutate bundle content.
 
 ## Local API
 

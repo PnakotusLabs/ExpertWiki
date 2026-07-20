@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,7 +19,29 @@ from .authoring import (
     rebuild_indexes,
     show_concept,
 )
+from .agent_jobs import (
+    agent_job_status,
+    fail_agent_job,
+    next_agent_job,
+    prepare_agent_jobs,
+    public_agent_job,
+    retry_agent_job,
+    submit_agent_job,
+)
+from .experience import (
+    add_material,
+    approve_suggestion,
+    ask_wiki,
+    doctor_experience,
+    reject_suggestion,
+    review_suggestions,
+    start_experience,
+)
+from .compiler import analyze_bundle, compile_bundle, compiler_stats
+from .concurrency import BundleLockedError
 from .linting import lint_bundle
+from .publish import publish_bundle
+from .viewer import serve_viewer
 
 
 def _default_bundle_dir() -> str:
@@ -37,6 +61,92 @@ def main(argv: list[str] | None = None) -> int:
     )
     init_parser.add_argument("--title")
     init_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    start_parser = subparsers.add_parser("start", help="Set up or summarize the default ExpertWiki")
+    start_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    start_parser.add_argument("--title")
+    start_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    add_parser = subparsers.add_parser("add", help="Add material and queue host-AI generation jobs")
+    add_parser.add_argument("paths", nargs="+", help="Either <source> or <bundle_dir> <source>")
+    add_parser.add_argument("--title")
+    add_parser.add_argument("--publisher", default="Unknown")
+    add_parser.add_argument("--slug")
+    add_parser.add_argument("--backend", choices=["host", "api"], default="host")
+    add_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    analyze_parser = subparsers.add_parser(
+        "analyze", help="Extract concepts and dependencies from changed raw sources"
+    )
+    analyze_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    analyze_parser.add_argument("--all", action="store_true", dest="analyze_all")
+    analyze_parser.add_argument("--backend", choices=["host", "api"], default="host")
+    analyze_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    compile_parser = subparsers.add_parser(
+        "compile", help="Incrementally analyze sources and compile concept drafts"
+    )
+    compile_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    compile_parser.add_argument("--concept", action="append", default=[])
+    compile_parser.add_argument("--no-analyze", action="store_true")
+    compile_parser.add_argument("--force", action="store_true")
+    compile_parser.add_argument("--allow-manual-overwrite", action="store_true")
+    compile_parser.add_argument("--backend", choices=["host", "api"], default="host")
+    compile_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    review_parser = subparsers.add_parser("review", help="Review suggested cards")
+    review_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    review_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    approve_parser = subparsers.add_parser("approve", help="Approve a suggested card into the wiki")
+    approve_parser.add_argument("refs", nargs="+", help="Either <card> or <bundle_dir> <card>")
+    approve_parser.add_argument("--force", action="store_true")
+    approve_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    reject_parser = subparsers.add_parser("reject", help="Reject a suggested card with feedback")
+    reject_parser.add_argument("refs", nargs="+", help="Either <card> or <bundle_dir> <card>")
+    reject_parser.add_argument("--feedback", required=True)
+    reject_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    ask_parser = subparsers.add_parser("ask", help="Ask the approved wiki")
+    ask_parser.add_argument("parts", nargs="+", help="Either <question> or <bundle_dir> <question>")
+    ask_parser.add_argument("--limit", type=int, default=5)
+    ask_parser.add_argument("--backend", choices=["host", "api"], default="host")
+    ask_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    doctor_parser = subparsers.add_parser("doctor", help="Explain what needs attention")
+    doctor_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    doctor_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    view_parser = subparsers.add_parser("view", help="Open the local read-only wiki viewer")
+    view_parser.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    view_parser.add_argument("--host", default="127.0.0.1")
+    view_parser.add_argument("--port", type=int, default=8765)
+    view_parser.add_argument("--no-open", action="store_true", help="Do not open a browser")
+
+    jobs_parser = subparsers.add_parser("jobs", help="Exchange generation jobs with the host AI")
+    jobs_subparsers = jobs_parser.add_subparsers(dest="jobs_command", required=True)
+    jobs_next = jobs_subparsers.add_parser("next", help="Claim the next host-AI job")
+    jobs_next.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    jobs_next.add_argument("--json", action="store_true", help="Emit JSON output")
+    jobs_submit = jobs_subparsers.add_parser("submit", help="Validate and apply a host-AI result")
+    jobs_submit.add_argument("bundle_dir")
+    jobs_submit.add_argument("job_id")
+    jobs_submit.add_argument("--result", required=True, help="Result JSON path, or - for stdin")
+    jobs_submit.add_argument("--generator", required=True, help="Host AI name, such as codex")
+    jobs_submit.add_argument("--json", action="store_true", help="Emit JSON output")
+    jobs_fail = jobs_subparsers.add_parser("fail", help="Record a host-AI job failure")
+    jobs_fail.add_argument("bundle_dir")
+    jobs_fail.add_argument("job_id")
+    jobs_fail.add_argument("--error", required=True)
+    jobs_fail.add_argument("--json", action="store_true", help="Emit JSON output")
+    jobs_retry = jobs_subparsers.add_parser("retry", help="Retry a failed host-AI job")
+    jobs_retry.add_argument("bundle_dir")
+    jobs_retry.add_argument("job_id")
+    jobs_retry.add_argument("--json", action="store_true", help="Emit JSON output")
+    jobs_status = jobs_subparsers.add_parser("status", help="List host-AI job state")
+    jobs_status.add_argument("bundle_dir", nargs="?", default=_default_bundle_dir())
+    jobs_status.add_argument("--json", action="store_true", help="Emit JSON output")
 
     ingest_parser = subparsers.add_parser("ingest", help="Ingest a local file as a raw source")
     ingest_parser.add_argument("bundle_dir")
@@ -101,10 +211,88 @@ def main(argv: list[str] | None = None) -> int:
     package_parser.add_argument("--dry-run", action="store_true", required=True)
     package_parser.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    publish_parser = subparsers.add_parser("publish", help="Publish wiki pages to ExpertWikiSaaS")
+    publish_parser.add_argument("bundle_dir")
+    publish_parser.add_argument(
+        "--endpoint",
+        default=os.environ.get("EXPERTWIKI_PUBLISH_ENDPOINT"),
+        help="Publish API endpoint. Can also be set with EXPERTWIKI_PUBLISH_ENDPOINT.",
+    )
+    publish_parser.add_argument(
+        "--token",
+        default=os.environ.get("EXPERTWIKI_PUBLISH_TOKEN"),
+        help="Publish token. Can also be set with EXPERTWIKI_PUBLISH_TOKEN.",
+    )
+    publish_parser.add_argument("--dry-run", action="store_true", help="Run publish preflight without HTTP upload")
+    publish_parser.add_argument("--json", action="store_true", help="Emit JSON output")
+
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
             return _run_init(args.bundle_dir, title=args.title, emit_json=args.json)
+        if args.command == "start":
+            return _run_start(args.bundle_dir, title=args.title, emit_json=args.json)
+        if args.command == "add":
+            bundle_dir, source = _resolve_bundle_and_value(args.paths, value_name="source")
+            return _run_add(
+                bundle_dir,
+                source,
+                title=args.title,
+                publisher=args.publisher,
+                slug=args.slug,
+                backend=args.backend,
+                emit_json=args.json,
+            )
+        if args.command == "analyze":
+            return _run_analyze(
+                args.bundle_dir,
+                analyze_all=args.analyze_all,
+                backend=args.backend,
+                emit_json=args.json,
+            )
+        if args.command == "compile":
+            return _run_compile(
+                args.bundle_dir,
+                concept_refs=args.concept,
+                analyze_changes=not args.no_analyze,
+                force=args.force,
+                allow_manual_overwrite=args.allow_manual_overwrite,
+                backend=args.backend,
+                emit_json=args.json,
+            )
+        if args.command == "review":
+            return _run_review(args.bundle_dir, emit_json=args.json)
+        if args.command == "approve":
+            bundle_dir, draft_ref = _resolve_bundle_and_value(args.refs, value_name="card")
+            return _run_approve(bundle_dir, draft_ref, force=args.force, emit_json=args.json)
+        if args.command == "reject":
+            bundle_dir, draft_ref = _resolve_bundle_and_value(args.refs, value_name="card")
+            return _run_reject(
+                bundle_dir,
+                draft_ref,
+                feedback=args.feedback,
+                emit_json=args.json,
+            )
+        if args.command == "ask":
+            bundle_dir, question = _resolve_bundle_and_query(args.parts)
+            return _run_ask(
+                bundle_dir,
+                question,
+                limit=args.limit,
+                backend=args.backend,
+                emit_json=args.json,
+            )
+        if args.command == "doctor":
+            return _run_doctor(args.bundle_dir, emit_json=args.json)
+        if args.command == "view":
+            return _run_view(
+                args.bundle_dir,
+                host=args.host,
+                port=args.port,
+                open_browser=not args.no_open,
+            )
+        if args.command == "jobs":
+            return _run_jobs(args)
         if args.command == "ingest":
             return _run_ingest(
                 args.bundle_dir,
@@ -141,12 +329,37 @@ def main(argv: list[str] | None = None) -> int:
             return _run_audit(args.bundle_dir, emit_json=args.json)
         if args.command == "package":
             return _run_package_dry_run(args.bundle_dir, emit_json=args.json)
-    except ValueError as exc:
+        if args.command == "publish":
+            return _run_publish(
+                args.bundle_dir,
+                endpoint=args.endpoint,
+                token=args.token,
+                dry_run=args.dry_run,
+                emit_json=args.json,
+            )
+    except (ValueError, BundleLockedError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
 
     parser.error(f"Unknown command: {args.command}")
     return 2
+
+
+def _resolve_bundle_and_value(parts: list[str], *, value_name: str) -> tuple[str, str]:
+    if len(parts) == 1:
+        return _default_bundle_dir(), parts[0]
+    if len(parts) == 2:
+        return parts[0], parts[1]
+    raise ValueError(f"Expected either <{value_name}> or <bundle_dir> <{value_name}>.")
+
+
+def _resolve_bundle_and_query(parts: list[str]) -> tuple[str, str]:
+    if len(parts) == 1:
+        return _default_bundle_dir(), parts[0]
+    first = Path(parts[0])
+    if first.exists() or "/" in parts[0] or parts[0] in {".", ".."} or parts[0].startswith("~"):
+        return parts[0], " ".join(parts[1:])
+    return _default_bundle_dir(), " ".join(parts)
 
 
 def _run_init(bundle_dir: str, *, title: str | None, emit_json: bool) -> int:
@@ -158,6 +371,320 @@ def _run_init(bundle_dir: str, *, title: str | None, emit_json: bool) -> int:
         for path in result.created_files:
             print(f"created {path}")
     return 0
+
+
+def _run_start(bundle_dir: str, *, title: str | None, emit_json: bool) -> int:
+    result = start_experience(bundle_dir, title=title)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        if result.initialized:
+            print(f"Initialized ExpertWiki at {result.root}")
+        else:
+            print(f"ExpertWiki: {result.root}")
+        print(f"Sources: {result.source_count}")
+        print(f"Approved cards: {result.page_count}")
+        print(f"Suggested cards: {result.draft_count}")
+        print("Next actions:")
+        for action in result.next_actions:
+            print(f"  - {action}")
+    return 0 if result.ok else 1
+
+
+def _run_add(
+    bundle_dir: str,
+    source: str,
+    *,
+    title: str | None,
+    publisher: str,
+    slug: str | None,
+    backend: str,
+    emit_json: bool,
+) -> int:
+    result = add_material(
+        bundle_dir,
+        source,
+        title=title,
+        publisher=publisher,
+        slug=slug,
+        backend=backend,
+    )
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        print(f"Saved source: {result.source_path}")
+        print(result.message)
+        for draft_path in result.draft_paths:
+            print(f"Suggested card: {draft_path}")
+        if result.draft_paths:
+            print("Review them with: expertwiki review")
+    return 0
+
+
+def _run_review(bundle_dir: str, *, emit_json: bool) -> int:
+    result = review_suggestions(bundle_dir)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        print(f"Suggested cards: {len(result.drafts)}")
+        for index, draft in enumerate(result.drafts, start=1):
+            print(f"[{index}] {draft['title']}")
+            if draft["description"]:
+                print(f"    {draft['description']}")
+            print(f"    Path: {draft['path']}")
+            if draft["sources"]:
+                print(f"    Sources: {', '.join(str(source) for source in draft['sources'])}")
+    return 0
+
+
+def _run_view(
+    bundle_dir: str,
+    *,
+    host: str,
+    port: int,
+    open_browser: bool,
+) -> int:
+    try:
+        serve_viewer(
+            bundle_dir,
+            host=host,
+            port=port,
+            open_browser=open_browser,
+        )
+    except OSError as exc:
+        raise ValueError(f"Could not start viewer: {exc}") from exc
+    return 0
+
+
+def _run_analyze(
+    bundle_dir: str,
+    *,
+    analyze_all: bool,
+    backend: str,
+    emit_json: bool,
+) -> int:
+    if backend == "host":
+        host_result = prepare_agent_jobs(bundle_dir, mode="analyze", analyze_all=analyze_all)
+        payload = asdict(host_result)
+        if emit_json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(f"Queued host-AI jobs: {len(host_result.created_jobs)}")
+            print(
+                f"Pending: {host_result.pending}; claimed: {host_result.claimed}; "
+                f"failed: {host_result.failed}"
+            )
+            print("Run 'expertwiki jobs next <bundle> --json' from the invoking AI workflow.")
+        return 1 if host_result.failed else 0
+
+    api_result = analyze_bundle(bundle_dir, analyze_all=analyze_all)
+    payload = asdict(api_result)
+    if emit_json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"Analyzed sources: {len(api_result.analyzed_sources)}")
+        print(f"Affected concepts: {len(api_result.affected_concepts)}")
+        for error in api_result.errors:
+            print(f"error: {error}")
+    return 1 if api_result.errors else 0
+
+
+def _run_compile(
+    bundle_dir: str,
+    *,
+    concept_refs: list[str],
+    analyze_changes: bool,
+    force: bool,
+    allow_manual_overwrite: bool,
+    backend: str,
+    emit_json: bool,
+) -> int:
+    if backend == "host":
+        if not analyze_changes:
+            raise ValueError("Host backend always analyzes changed sources before compilation.")
+        host_result = prepare_agent_jobs(
+            bundle_dir,
+            mode="compile",
+            concept_refs=concept_refs,
+            force=force,
+            allow_manual_overwrite=allow_manual_overwrite,
+        )
+        payload = asdict(host_result)
+        if emit_json:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        else:
+            print(f"Queued host-AI jobs: {len(host_result.created_jobs)}")
+            print(
+                f"Pending: {host_result.pending}; claimed: {host_result.claimed}; "
+                f"failed: {host_result.failed}"
+            )
+            if host_result.blocked_reason:
+                print(f"Waiting: {host_result.blocked_reason}")
+            print("Run 'expertwiki jobs next <bundle> --json' from the invoking AI workflow.")
+        return 1 if host_result.failed else 0
+
+    api_result = compile_bundle(
+        bundle_dir,
+        concept_refs=concept_refs,
+        analyze_changes=analyze_changes,
+        force=force,
+        allow_manual_overwrite=allow_manual_overwrite,
+    )
+    payload = asdict(api_result)
+    if emit_json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(f"Compile run: {api_result.run_id}")
+        print(f"Analyzed sources: {len(api_result.analyzed_sources)}")
+        print(f"Created drafts: {len(api_result.draft_paths)}")
+        for path in api_result.draft_paths:
+            print(f"draft {path}")
+        for item in api_result.skipped:
+            print(f"skipped {item['concept']}: {item['reason']}")
+        for error in api_result.errors:
+            print(f"error: {error}")
+    return 1 if api_result.errors else 0
+
+
+def _run_jobs(args: argparse.Namespace) -> int:
+    if args.jobs_command == "next":
+        next_job = next_agent_job(args.bundle_dir)
+        next_payload = {
+            "job": public_agent_job(next_job) if next_job is not None else None
+        }
+        if args.json:
+            print(json.dumps(next_payload, indent=2, sort_keys=True))
+        elif next_job is None:
+            print("No pending host-AI jobs.")
+        else:
+            print(f"Claimed {next_job.kind} job: {next_job.id}")
+            print(json.dumps(next_job.payload, indent=2, sort_keys=True))
+        return 0
+    if args.jobs_command == "submit":
+        result_payload = _read_result_json(args.result)
+        submit_result = submit_agent_job(
+            args.bundle_dir,
+            args.job_id,
+            result_payload,
+            generator=args.generator,
+        )
+        output = asdict(submit_result)
+        if args.json:
+            print(json.dumps(output, indent=2, sort_keys=True))
+        else:
+            print(f"Completed {submit_result.kind} job: {submit_result.job_id}")
+            if submit_result.output_path:
+                print(f"Suggested card: {submit_result.output_path}")
+            if submit_result.affected_concepts:
+                print(f"Affected concepts: {', '.join(submit_result.affected_concepts)}")
+        return 0
+    if args.jobs_command == "fail":
+        failed_job = fail_agent_job(args.bundle_dir, args.job_id, args.error)
+        failed_payload = public_agent_job(failed_job)
+        if args.json:
+            print(json.dumps(failed_payload, indent=2, sort_keys=True))
+        else:
+            print(f"Failed job: {failed_job.id}")
+            print(f"Reason: {failed_job.error}")
+        return 0
+    if args.jobs_command == "retry":
+        retried_job = retry_agent_job(args.bundle_dir, args.job_id)
+        retried_payload = public_agent_job(retried_job)
+        if args.json:
+            print(json.dumps(retried_payload, indent=2, sort_keys=True))
+        else:
+            print(f"Queued retry: {retried_job.id}")
+        return 0
+    if args.jobs_command == "status":
+        status_payload = agent_job_status(args.bundle_dir)
+        if args.json:
+            print(json.dumps(status_payload, indent=2, sort_keys=True))
+        else:
+            counts = status_payload["counts"]
+            print(
+                "Host-AI jobs: "
+                + ", ".join(f"{key}={value}" for key, value in counts.items())
+            )
+            for status_job in status_payload["jobs"]:
+                target = status_job["source_path"] or status_job["concept_id"]
+                print(
+                    f"- {status_job['status']} {status_job['kind']} "
+                    f"{status_job['id']} ({target})"
+                )
+        return 0
+    raise ValueError(f"Unknown jobs command: {args.jobs_command}")
+
+
+def _read_result_json(path: str) -> dict[str, object]:
+    raw = sys.stdin.read() if path == "-" else Path(path).read_text(encoding="utf-8")
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Result file is not valid JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Result JSON must be an object.")
+    return payload
+
+
+def _run_approve(bundle_dir: str, draft_ref: str, *, force: bool, emit_json: bool) -> int:
+    result = approve_suggestion(bundle_dir, draft_ref, force=force)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        print(f"Approved: {result.title}")
+        print(f"Saved to: {result.page_path}")
+    return 0
+
+
+def _run_reject(bundle_dir: str, draft_ref: str, *, feedback: str, emit_json: bool) -> int:
+    result = reject_suggestion(bundle_dir, draft_ref, feedback=feedback)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        print(f"Rejected: {result.title}")
+        print(f"Saved feedback to: {result.rejected_path}")
+    return 0
+
+
+def _run_ask(
+    bundle_dir: str,
+    question: str,
+    *,
+    limit: int,
+    backend: str,
+    emit_json: bool,
+) -> int:
+    result = ask_wiki(bundle_dir, question, limit=limit, backend=backend)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        print("Answer")
+        print(result.answer)
+        if result.used_pages:
+            print()
+            print("Used cards")
+            for page in result.used_pages:
+                print(f"- {page['id']}: {page['title']}")
+    return 0
+
+
+def _run_doctor(bundle_dir: str, *, emit_json: bool) -> int:
+    result = doctor_experience(bundle_dir)
+    if emit_json:
+        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+    else:
+        status = "OK" if result.ok else "NEEDS ATTENTION"
+        print(f"ExpertWiki doctor {status}")
+        print(f"Sources: {result.source_count}")
+        print(f"Approved cards: {result.page_count}")
+        print(f"Suggested cards: {result.draft_count}")
+        for issue in result.issues:
+            print(f"- {issue}")
+        if result.next_actions:
+            print("Next actions:")
+            for action in result.next_actions:
+                print(f"  - {action}")
+    return 0 if result.ok else 1
 
 
 def _run_ingest(
@@ -271,13 +798,19 @@ def _run_lint(bundle_dir: str, *, emit_json: bool) -> int:
 def _run_status(bundle_dir: str, *, emit_json: bool) -> int:
     result = bundle_status(bundle_dir)
     if emit_json:
-        print(json.dumps(result.__dict__, indent=2, sort_keys=True))
+        payload = dict(result.__dict__)
+        payload["compiler"] = compiler_stats(bundle_dir, initialize=False)
+        print(json.dumps(payload, indent=2, sort_keys=True))
     else:
         status = "OK" if result.ok else "NEEDS ATTENTION"
         print(f"ExpertWiki status {status}")
         print("Concepts:")
         for concept_type, count in sorted(result.concept_counts.items()):
             print(f"  {concept_type}: {count}")
+        compiler = compiler_stats(bundle_dir, initialize=False)
+        print("Compiler:")
+        for key, value in sorted(compiler.items()):
+            print(f"  {key}: {value}")
         print(f"Latest audit: {result.latest_audit or 'none'}")
         print("Next actions:")
         for action in result.next_actions:
@@ -344,6 +877,42 @@ def _run_package_dry_run(bundle_dir: str, *, emit_json: bool) -> int:
             location = f" {issue.path}" if issue.path else ""
             print(f"[{issue.severity}]{location}: {issue.message}")
     return 0 if result.ok else 1
+
+
+def _run_publish(
+    bundle_dir: str,
+    *,
+    endpoint: str | None,
+    token: str | None,
+    dry_run: bool,
+    emit_json: bool,
+) -> int:
+    if not endpoint:
+        raise ValueError("Missing publish endpoint. Use --endpoint or EXPERTWIKI_PUBLISH_ENDPOINT.")
+    if not token and not dry_run:
+        raise ValueError("Missing publish token. Use --token or EXPERTWIKI_PUBLISH_TOKEN.")
+
+    result = publish_bundle(
+        bundle_dir,
+        endpoint=endpoint,
+        token=token or "",
+        dry_run=dry_run,
+    )
+    payload = {
+        "endpoint": result.endpoint,
+        "bundle_title": result.bundle_title,
+        "page_count": result.page_count,
+        "status_code": result.status_code,
+        "response": result.response,
+        "dry_run": result.dry_run,
+    }
+    if emit_json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    elif dry_run:
+        print(f"Publish dry-run OK: {result.page_count} page(s) ready for {result.endpoint}")
+    else:
+        print(f"Published {result.page_count} page(s) to {result.endpoint}")
+    return 0
 
 
 if __name__ == "__main__":

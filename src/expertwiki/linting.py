@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
+import sqlite3
 
 from .okf import RESERVED_FILENAMES, OkfConcept, load_okf_concepts, parse_okf_concept
 
 
-ALLOWED_CONCEPT_TYPES = {"raw_source", "wiki_page", "audit_report"}
+ALLOWED_CONCEPT_TYPES = {"raw_source", "wiki_page", "draft_page", "audit_report"}
 ALLOWED_ENTITY_TYPES = {"expert", "project", "viewpoint", "topic", "comparison", "synthesis"}
 ALLOWED_QUALITY_STATES = {"unreviewed", "reviewed", "verified", "stale", "disputed", "rejected"}
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "suggestion": 2, "info": 3}
 MARKDOWN_LINK_PATTERN = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+CITATION_PATTERN = re.compile(r"\^\[([^\]]+)\]")
 
 
 @dataclass(frozen=True)
@@ -84,8 +87,10 @@ def lint_bundle(bundle_dir: str | Path) -> LintResult:
 
     _check_concepts(context, concepts)
     _check_source_references(context, concepts)
+    _check_citations(context, root, concepts)
     _check_index_consistency(context, root)
     _check_markdown_links(context, root)
+    _check_compiler_state(context, root)
     return context.result()
 
 
@@ -150,6 +155,21 @@ def _check_concepts(context: LintContext, concepts: dict[str, OkfConcept]) -> No
                 context.issue("critical", "wiki_page sources must be a list", concept.path)
             continue
 
+        if concept.type == "draft_page":
+            _check_required_fields(context, concept, ("title",))
+            if not concept.path.startswith(("/.expertwiki/drafts/", "/.expertwiki/rejected/")):
+                context.issue(
+                    "warning",
+                    "draft_page should live under .expertwiki/drafts/ or .expertwiki/rejected/",
+                    concept.path,
+                )
+            sources = concept.metadata.get("sources")
+            if sources is None:
+                context.issue("suggestion", "draft_page has no sources list", concept.path)
+            elif not isinstance(sources, list):
+                context.issue("critical", "draft_page sources must be a list", concept.path)
+            continue
+
         if concept.type == "audit_report":
             _check_required_fields(context, concept, ("title", "created_at"))
 
@@ -168,7 +188,7 @@ def _check_required_fields(
 def _check_source_references(context: LintContext, concepts: dict[str, OkfConcept]) -> None:
     available_paths = {concept.path for concept in concepts.values() if concept.type == "raw_source"}
     for concept in concepts.values():
-        if concept.type != "wiki_page":
+        if concept.type not in {"wiki_page", "draft_page"}:
             continue
         sources = concept.metadata.get("sources")
         if not isinstance(sources, list):
@@ -177,13 +197,61 @@ def _check_source_references(context: LintContext, concepts: dict[str, OkfConcep
             if str(source_path) not in available_paths:
                 context.issue(
                     "critical",
-                    f"wiki_page references missing source: {source_path}",
+                    f"{concept.type} references missing source: {source_path}",
                     concept.path,
                 )
 
 
+def _check_citations(
+    context: LintContext,
+    root: Path,
+    concepts: dict[str, OkfConcept],
+) -> None:
+    source_lines = {
+        concept.path.removeprefix("/"): len((root / concept.path.removeprefix("/")).read_text(encoding="utf-8").splitlines())
+        for concept in concepts.values()
+        if concept.type == "raw_source"
+    }
+    basename_map: dict[str, list[str]] = {}
+    for source_path in source_lines:
+        basename_map.setdefault(Path(source_path).name, []).append(source_path)
+    for concept in concepts.values():
+        if concept.type not in {"wiki_page", "draft_page"}:
+            continue
+        for marker in CITATION_PATTERN.findall(concept.body):
+            for raw_ref in [part.strip() for part in marker.split(",") if part.strip()]:
+                match = re.fullmatch(r"(.+?\.md)(?::(\d+)(?:-(\d+))?)?", raw_ref)
+                if not match:
+                    context.issue("critical", f"Malformed source citation: ^[{raw_ref}]", concept.path)
+                    continue
+                raw_path, start_raw, end_raw = match.groups()
+                source_path = raw_path.removeprefix("/")
+                if source_path not in source_lines:
+                    matches = basename_map.get(Path(source_path).name, [])
+                    if len(matches) == 1:
+                        source_path = matches[0]
+                    else:
+                        context.issue(
+                            "critical",
+                            f"Citation references an unknown source: {raw_path}",
+                            concept.path,
+                        )
+                        continue
+                if start_raw:
+                    start = int(start_raw)
+                    end = int(end_raw or start_raw)
+                    if start < 1 or end < start or end > source_lines[source_path]:
+                        context.issue(
+                            "critical",
+                            f"Citation range is outside {source_path}: {start}-{end}",
+                            concept.path,
+                        )
+
+
 def _check_index_consistency(context: LintContext, root: Path) -> None:
     for directory in sorted(path for path in root.rglob("*") if path.is_dir()):
+        if any(part.startswith(".") for part in directory.relative_to(root).parts):
+            continue
         markdown_files = [
             path
             for path in directory.glob("*.md")
@@ -218,6 +286,70 @@ def _check_markdown_links(context: LintContext, root: Path) -> None:
             target_path = _resolve_link(root, path, cleaned)
             if not target_path.exists():
                 context.issue("warning", f"Broken markdown link: {target}", path)
+
+
+def _check_compiler_state(context: LintContext, root: Path) -> None:
+    journal_dir = root / ".expertwiki" / "journal"
+    pending_journals = sorted(journal_dir.glob("*.json")) if journal_dir.exists() else []
+    for path in pending_journals:
+        context.issue(
+            "critical",
+            "Pending compiler journal requires recovery before the bundle is trusted",
+            path,
+        )
+
+    database = root / ".expertwiki" / "state.sqlite"
+    if not database.exists():
+        return
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(f"file:{database}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        tables = {
+            str(row[0])
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+        required = {"sources", "concepts", "articles", "drafts"}
+        if not required.issubset(tables):
+            context.issue("critical", "Compiler state database is missing required tables", database)
+            return
+        for row in connection.execute("SELECT path, content_hash, status FROM sources"):
+            path = root / str(row["path"])
+            if row["status"] == "deleted":
+                if path.exists():
+                    context.issue("warning", "Deleted source exists again and needs analysis", path)
+                continue
+            if not path.exists():
+                context.issue("critical", "Compiler state references a missing source", path)
+                continue
+            if _content_hash(path) != str(row["content_hash"]):
+                context.issue("warning", "Source changed since its last compiler scan", path)
+        for row in connection.execute("SELECT path, content_hash FROM drafts WHERE status = 'pending_review'"):
+            path = root / str(row["path"])
+            if not path.exists():
+                context.issue("critical", "Compiler state references a missing draft", path)
+            elif _content_hash(path) != str(row["content_hash"]):
+                context.issue("warning", "Draft was edited after compilation", path)
+        for row in connection.execute("SELECT path, content_hash FROM articles"):
+            path = root / str(row["path"])
+            if not path.exists():
+                context.issue("critical", "Compiler state references a missing published page", path)
+            elif _content_hash(path) != str(row["content_hash"]):
+                context.issue("warning", "Published page has a manual edit not recorded in state", path)
+        for row in connection.execute(
+            "SELECT name, status FROM concepts WHERE status IN ('frozen', 'orphaned', 'blocked')"
+        ):
+            severity = "warning" if row["status"] in {"frozen", "orphaned"} else "info"
+            context.issue(severity, f"Compiler concept {row['name']!r} is {row['status']}", database)
+    except sqlite3.DatabaseError as exc:
+        context.issue("critical", f"Compiler state database cannot be read: {exc}", database)
+    finally:
+        if connection is not None:
+            connection.close()
+
+
+def _content_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _is_external_link(target: str) -> bool:

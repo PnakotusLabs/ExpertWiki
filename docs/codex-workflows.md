@@ -31,14 +31,17 @@ User intent:
 Commands:
 
 ```bash
-PYTHONPATH=src python3 -m expertwiki.cli ingest ~/.expertwiki ./notes/mcp-review.md --publisher "Internal review" --slug mcp-review
-PYTHONPATH=src python3 -m expertwiki.cli lint ~/.expertwiki
+PYTHONPATH=src python3 -m expertwiki.cli add ~/.expertwiki ./notes/mcp-review.md --publisher "Internal review" --slug mcp-review
+PYTHONPATH=src python3 -m expertwiki.cli jobs next ~/.expertwiki --json
 ```
 
 Expected behavior:
 
 - Preserve the local source under `raw/sources/`.
-- Rebuild indexes.
+- Codex reads the claimed source, writes the strict analysis JSON, submits it
+  with `jobs submit --generator codex`, and continues the queue through concept
+  compilation.
+- Generated output remains under `.expertwiki/drafts/` until the user approves it.
 - Do not pass a URL; URL ingestion is unsupported.
 
 ## Create A Wiki Page

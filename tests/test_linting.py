@@ -61,6 +61,34 @@ updated_at: 2026-07-04
         self.assertTrue(result.ok)
         self.assertTrue(any("Broken markdown link" in issue.message for issue in result.issues))
 
+    def test_out_of_range_source_citation_is_critical(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _write_minimal_wiki(root)
+            (root / "wiki" / "topics" / "cited.md").write_text(
+                """---
+type: wiki_page
+entity_type: topic
+title: Cited Page
+quality: reviewed
+license: unknown
+source_updated_at: 2026-07-19
+last_reviewed_at: 2026-07-19
+sources: [/raw/sources/source.md]
+---
+
+# Cited Page
+
+This range does not exist. ^[raw/sources/source.md:500-510]
+""",
+                encoding="utf-8",
+            )
+
+            result = lint_bundle(root)
+
+        self.assertFalse(result.ok)
+        self.assertTrue(any("Citation range is outside" in issue.message for issue in result.issues))
+
 
 def _write_minimal_wiki(root: Path) -> None:
     (root / "raw" / "sources").mkdir(parents=True)
